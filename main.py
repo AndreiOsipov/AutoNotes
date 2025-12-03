@@ -1,4 +1,6 @@
-from fastapi import FastAPI
+from typing import Annotated
+
+from fastapi import FastAPI, Path
 from pydantic import BaseModel
 
 from utils import create_random_order_id
@@ -23,5 +25,10 @@ def process_video(uploaded_video: UploadedVideo):
 
 
 @app.get("/results/{order_id}")
-async def download_reult(order_id: int):
+async def download_reult(
+    order_id: Annotated[
+        int, 
+        Path(ge=1, le=1e6, title="order id", description="The ID you received when you sent the video")
+        ]
+    ):
     return {"message": f"result for {order_id} order"}
