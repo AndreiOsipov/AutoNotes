@@ -2,3 +2,6 @@
 /.venv
 /__pycache__
 /.vscode
+Subtitles/dir_video/*
+Subtitles/dir_audio/*
+Subtitles/dir_txt/*
