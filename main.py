@@ -1,34 +1,39 @@
-from typing import Annotated
-
-from fastapi import FastAPI, Path
+import os
+from fastapi import FastAPI, UploadFile, File
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from utils import create_random_order_id
+from app.api.v1.routers import subtitles
 
-class UploadedVideo(BaseModel):
-    ext: str
-    data: int # test data for POC
+app = FastAPI(title="Subtitles API", version="1.0.0")
 
+app.include_router(subtitles.router, prefix="/api/v1/subtitles", tags=["subtitles"])
 
-app = FastAPI()
+class Item(BaseModel):
+    text: str
 
-
-@app.get("/")
+@app.get("/api")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Subtitles API is running!"}
 
 
-@app.post("/process/")
-def process_video(uploaded_video: UploadedVideo):
-    order_id = create_random_order_id()
-    return order_id
+@app.post("/transcribe")
+async def transcribe_video(video: UploadFile = File(...)):
+    subtitles = f"{video.filename}:Текстовая версия видео"
+    return {"subtitles": subtitles}
 
 
-@app.get("/results/{order_id}")
-async def download_reult(
-    order_id: Annotated[
-        int, 
-        Path(ge=1, le=1e6, title="order id", description="The ID you received when you sent the video")
-        ]
-    ):
-    return {"message": f"result for {order_id} order"}
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "app\\static")
+# print(STATIC_DIR)
+app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "main:app",
+        host="127.0.0.1",
+        port=8000,
+        reload=True,
+    )
