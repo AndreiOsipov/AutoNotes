@@ -13,6 +13,31 @@ FILE_AUDIO = os.path.join(DIR, "dir_audio", "extracted_audio.wav")
 
 
 class Subtitles:
+    def __init__(self):
+        self.torch_dtype = torch.float16
+        self.model_name = "antony66/whisper-large-v3-russian"
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.processor = WhisperProcessor.from_pretrained(self.model_name)
+        self.model = WhisperForConditionalGeneration.from_pretrained(self.model_name, dtype=self.torch_dtype).to(self.device)
+        
+        self.asr_pipeline = pipeline(
+            "automatic-speech-recognition",
+            model = self.model,
+            tokenizer = self.processor.tokenizer,
+            feature_extractor = self.processor.feature_extractor,
+            max_new_tokens = 256,
+            chunk_length_s = 30,
+            batch_size = 16,
+            return_timestamps = True,
+            torch_dtype = self.torch_dtype,
+            device = self.device,
+        )
+        
+    def __new__(cls):
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(Subtitles, cls).__new__(cls)
+        return cls.instance
+
     def extract_audio(self, video_path: str, audio_path: str) -> str:
         with VideoFileClip(video_path) as video:
             if video.audio is None:
@@ -21,28 +46,11 @@ class Subtitles:
             return audio_path
 
     def transcribe_audio(self, audio_path: str) -> str:
-        torch_dtype = torch.float16
-        model_name = "antony66/whisper-large-v3-russian"
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        processor = WhisperProcessor.from_pretrained(model_name)
-        model = WhisperForConditionalGeneration.from_pretrained(model_name, dtype=torch_dtype).to(device)
-        asr_pipeline = pipeline(
-            "automatic-speech-recognition",
-            model = model,
-            tokenizer = processor.tokenizer,
-            feature_extractor = processor.feature_extractor,
-            max_new_tokens = 256,
-            chunk_length_s = 30,
-            batch_size = 16,
-            return_timestamps = True,
-            torch_dtype = torch_dtype,
-            device = device,
-        )
 
         # Загружаем аудио
         audio_input, sr = librosa.load(audio_path)
 
-        result = asr_pipeline(
+        result = self.asr_pipeline(
             audio_input,
             generate_kwargs={"language": "russian"}
         )
