@@ -1,34 +1,46 @@
-from typing import Annotated
+from contextlib import asynccontextmanager
+import shutil
 
-from fastapi import FastAPI, Path
-from pydantic import BaseModel
-
-from utils import create_random_order_id
-
-class UploadedVideo(BaseModel):
-    ext: str
-    data: int # test data for POC
+from fastapi import FastAPI, UploadFile, HTTPException
+from db import SessionDep, VideoTranscriptionPublic, VideoTranscription, create_db_and_tables
+from utils import VIDEO_DIR
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_db_and_tables()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
 
+@app.post("/process/", response_model=VideoTranscriptionPublic)
+def process_video(video: UploadFile, session: SessionDep):
+    
+    video_transcription = VideoTranscription(
+        transcription = "",
+        transcription_ready = False,
+    )
+    session.add(video_transcription)
+    session.commit()
+    session.refresh(video_transcription)
+    video_path = str(VIDEO_DIR / str(video_transcription.id)) + "_" + str(video.filename)
+    with open(video_path, 'wb') as f:
+        shutil.copyfileobj(video.file, f)
+    return video_transcription
 
-@app.post("/process/")
-def process_video(uploaded_video: UploadedVideo):
-    order_id = create_random_order_id()
-    return order_id
 
-
-@app.get("/results/{order_id}")
-async def download_reult(
-    order_id: Annotated[
-        int, 
-        Path(ge=1, le=1e6, title="order id", description="The ID you received when you sent the video")
-        ]
-    ):
-    return {"message": f"result for {order_id} order"}
+@app.get("/results/{transcription_id}", response_model=VideoTranscriptionPublic)
+def download_reult(
+    transcription_id: int,
+    session: SessionDep):
+    
+    transcription = session.get(VideoTranscription, transcription_id)
+    if not transcription:
+        raise HTTPException(status_code=404, detail=f"transcription with id {transcription_id} not found")
+    return transcription

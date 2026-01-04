@@ -1,6 +1,5 @@
-import random
-
-def create_random_order_id(seed=None, a=1, b=1000000):
-    if seed:
-        random.seed(seed)
-    return random.randint(a, b)
+from pathlib import Path
+ROOT_DIR = Path.cwd()
+VIDEO_DIR = ROOT_DIR /  "Subtitles" / "dir_video"
+AUDIO_DIR = ROOT_DIR /  "Subtitles" / "dir_audio"
+TEXT_DIR = ROOT_DIR /  "Subtitles" / "dir_txt"
