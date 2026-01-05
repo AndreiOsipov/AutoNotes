@@ -7,7 +7,8 @@ from PIL import Image
 
 from moviepy import VideoFileClip
 from transformers import WhisperForConditionalGeneration, WhisperProcessor, BlipProcessor, BlipForConditionalGeneration, pipeline
-from ..utils import IMAGES_DIR
+from utils.utils import IMAGES_DIR
+
 DIR = os.path.dirname(os.path.abspath(__file__))
 FILE_VIDEO = os.path.join(DIR, "dir_video", "vid.mp4")
 FILE_AUDIO = os.path.join(DIR, "dir_audio", "extracted_audio.wav")
