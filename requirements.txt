@@ -90,7 +90,6 @@ threadpoolctl==3.6.0
 tokenizers==0.19.1
 torch==2.9.1
 tqdm==4.67.1
-transformers @ git+https://github.com/rese1f/transformers.git@c4aa09c5d2add97463edd5aad8425d9ff45045a6
 triton==3.5.1
 typer==0.21.0
 typing-inspection==0.4.2
