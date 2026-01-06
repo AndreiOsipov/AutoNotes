@@ -1,27 +1,49 @@
 from contextlib import asynccontextmanager
 import shutil
 
-from fastapi import FastAPI, UploadFile, HTTPException
-from db import SessionDep, VideoTranscriptionPublic, VideoTranscription, create_db_and_tables
-from utils import VIDEO_DIR
-
+from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks, Depends
+from db import SessionDep, Users, Session, create_db_and_tables
+from utils.utils import VIDEO_DIR
+from Subtitles.subtitles import Subtitles, ImageCaption, extract_frames
+from services.video_service import mark_video_done, get_user_stats
+from users.users import get_current_active_user
+from models import VideoTranscription, VideoTranscriptionPublic
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
+    # Subtitles()
+    # ImageCaption()
     yield
 
 
 app = FastAPI(lifespan=lifespan)
 
 
+def write_subtitles(video_path: str, video_id: int, session: Session):
+    subtitles = Subtitles()
+    image_caption = ImageCaption()
+    audio_path = subtitles.extract_audio(video_path)
+    frames_paths, timestamps = extract_frames(video_path, video_id)
+    describtions = [image_caption.caption_image(path) for path in frames_paths]
+
+    video_subtitles = subtitles.transcribe_audio(audio_path)
+    transcription = session.get(VideoTranscription, video_id)
+    transcription.transcription = video_subtitles
+    transcription.transcription_ready = True
+    
+    
+    session.add(transcription)
+    session.commit()
+
+    mark_video_done(session, video_id, video_subtitles)
+
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
 
 @app.post("/process/", response_model=VideoTranscriptionPublic)
-def process_video(video: UploadFile, session: SessionDep):
-    
+def process_video(video: UploadFile, session: SessionDep, background_tasks: BackgroundTasks):
     video_transcription = VideoTranscription(
         transcription = "",
         transcription_ready = False,
@@ -32,6 +54,8 @@ def process_video(video: UploadFile, session: SessionDep):
     video_path = str(VIDEO_DIR / str(video_transcription.id)) + "_" + str(video.filename)
     with open(video_path, 'wb') as f:
         shutil.copyfileobj(video.file, f)
+
+    background_tasks.add_task(write_subtitles, video_path, video_transcription.id, session)
     return video_transcription
 
 
@@ -44,3 +68,7 @@ def download_reult(
     if not transcription:
         raise HTTPException(status_code=404, detail=f"transcription with id {transcription_id} not found")
     return transcription
+
+@app.get("/users/stats")
+def read_stats(session: SessionDep, current_user: Users = Depends(get_current_active_user)):
+    return get_user_stats(session, current_user.id)

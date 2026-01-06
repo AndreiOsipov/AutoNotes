@@ -1,4 +1,4 @@
-from utils import create_random_order_id
+from utils.utils import create_random_order_id
 
 
 def test_same_seed_returns_same_result(fixed_seed):

@@ -2,15 +2,11 @@ from typing import Annotated
 from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine, Field
 
-
-class VideoTranscriptionPublic(SQLModel):
-    id: int
-    transcription: str
-    transcription_ready: bool
-
-class VideoTranscription(VideoTranscriptionPublic, table=True):
+class Users(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    video_path: str | None = Field(default=None)
+    username: str = Field(index=True, unique=True)
+    hashed_password: str
+    disabled: bool = False
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
