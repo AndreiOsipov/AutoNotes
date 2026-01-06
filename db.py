@@ -12,6 +12,12 @@ class VideoTranscription(VideoTranscriptionPublic, table=True):
     id: int | None = Field(default=None, primary_key=True)
     video_path: str | None = Field(default=None)
 
+class Users(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    username: str = Field(index=True, unique=True)
+    hashed_password: str
+    disabled: bool = False
+
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 
