@@ -1,8 +1,8 @@
 /venv
 /.venv
-/__pycache__
 /.vscode
 /Subtitles/dir_video/*
 /Subtitles/dir_txt/*
 /Subtitles/dir_audio/*
 database.db
+**/__pycache__/*
