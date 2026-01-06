@@ -57,7 +57,7 @@ async def create_review(
         review_data = review.dict()
         created_review = ReviewCRUD.create_review(session, review_data)
         return ReviewResponse(
-            cust_id=created_review.cust_id,
+            username=created_review.username,
             transcription_id=created_review.transcription_id,
             rating=created_review.rating,
             comment=created_review.comment,
