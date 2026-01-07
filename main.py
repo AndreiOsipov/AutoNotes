@@ -1,11 +1,12 @@
 from contextlib import asynccontextmanager
 import shutil
 
+from datetime import datetime
 from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks, Depends
 from db import SessionDep, Users, Session, create_db_and_tables
 from utils.utils import VIDEO_DIR
 from Subtitles.subtitles import Subtitles, ImageCaption, extract_frames
-from services.video_service import mark_video_done, get_user_stats
+from services.video_service import get_user_stats
 from users.users import get_current_active_user
 from models import VideoTranscription, VideoTranscriptionPublic
 
@@ -32,11 +33,11 @@ def write_subtitles(video_path: str, video_id: int, session: Session):
     transcription.transcription = video_subtitles
     transcription.transcription_ready = True
     
-    
+    transcription.completed_at = datetime.utcnow()
+
     session.add(transcription)
     session.commit()
 
-    mark_video_done(session, video_id, video_subtitles)
 
 @app.get("/")
 async def root():

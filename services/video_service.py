@@ -2,21 +2,6 @@ from datetime import datetime
 from sqlmodel import Session, select
 from models import VideoTranscription
 
-def mark_video_done(session: Session, video_id: int, transcription_text: str):
-    """Обновляет запись: ставит текст и фиксирует время окончания"""
-    video = session.get(VideoTranscription, video_id)
-    if not video:
-        return None
-    
-    video.transcription = transcription_text
-    video.transcription_ready = True
-    video.finished_at = datetime.utcnow() # Тот самый момент завершения
-    
-    session.add(video)
-    session.commit()
-    session.refresh(video)
-    return video
-
 def get_user_stats(session: Session, user_id: int):
     """Считает количество видео и среднее время обработки для юзера"""
     statement = select(VideoTranscription).where(
