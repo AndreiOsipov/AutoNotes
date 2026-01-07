@@ -7,3 +7,4 @@ __pycache__
 /Subtitles/dir_txt/*
 /Subtitles/dir_audio/*
 database.db
+**/__pycache__/*
