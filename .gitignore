@@ -1,6 +1,7 @@
 /venv
 /.venv
-/__pycache__
+.env
+__pycache__
 /.vscode
 /Subtitles/dir_video/*
 /Subtitles/dir_txt/*

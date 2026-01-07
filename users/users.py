@@ -4,21 +4,22 @@ from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
 
-from db import Users, get_session
+from db import User, get_session
+from config.config import Config, load_config
 
 
-app = FastAPI()
+config: Config = load_config()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 # Настройки
-SECRET_KEY = "your-secret-key"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+SECRET_KEY = config.jwtoken.secret_key
+ALGORITHM = config.jwtoken.algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES = config.jwtoken.access_token_expire_minutes
 
 
 pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
@@ -49,7 +50,7 @@ def get_password_hash(password):
 
 
 def authenticate_user(db: Session, username: str, password: str):
-    user = db.exec(select(Users).where(Users.username == username)).first()
+    user = db.exec(select(User).where(User.username == username)).first()
     if not user:
         return False
     if not verify_password(password, user.hashed_password):
@@ -82,13 +83,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    user = db.exec(select(Users).where(Users.username == username)).first()
+    user = db.exec(select(User).where(User.username == username)).first()
     if user is None:
         raise credentials_exception
     return user
 
 
-async def get_current_active_user(current_user: Users = Depends(get_current_user)):
+async def get_current_active_user(current_user: User = Depends(get_current_user)):
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
