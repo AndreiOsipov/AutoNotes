@@ -4,6 +4,7 @@ import shutil
 from fastapi import FastAPI, UploadFile, HTTPException
 from db import SessionDep, VideoTranscriptionPublic, VideoTranscription, create_db_and_tables
 from utils import VIDEO_DIR
+from users.users_router import router
 
 
 @asynccontextmanager
@@ -13,6 +14,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+app.include_router(router)
 
 
 @app.get("/")
