@@ -100,7 +100,24 @@ class Subtitles:
             generate_kwargs={"language": "russian"}
         )
         return result["text"]
-
+    def transcribe_audio_with_timestamps(self, audio_path: str) -> dict:
+        audio_input, sr = librosa.load(audio_path)
+        result = self.asr_pipeline(
+            audio_input,
+            generate_kwargs={"language": "russian"}
+        )
+        chunks = []
+        if "chunks" in result:
+            for chunk in result["chunks"]:
+                chunks.append({
+                    "text": chunk["text"],
+                    "timestamp": chunk["timestamp"]
+                })
+        
+        return {
+            "text": result["text"],
+            "chunks": chunks
+        }
 
 if __name__ == '__main__':
     # ImageCaption()

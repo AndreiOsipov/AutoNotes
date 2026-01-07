@@ -1,17 +1,18 @@
 from contextlib import asynccontextmanager
 import shutil
-
+import json
+from pathlib import Path
 from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks
 from db import SessionDep, VideoTranscriptionPublic, VideoTranscription, Session, create_db_and_tables
-from utils.utils import VIDEO_DIR
+from utils.utils import VIDEO_DIR, AUDIO_DIR
 from Subtitles.subtitles import Subtitles, ImageCaption, extract_frames
-
+from NotesSynchronizer.notes_synchronizer import NotesSynchronizer
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
-    # Subtitles()
-    # ImageCaption()
+    Subtitles()
+    ImageCaption()
     yield
 
 
@@ -19,20 +20,30 @@ app = FastAPI(lifespan=lifespan)
 
 
 def write_subtitles(video_path: str, video_id, session: Session):
+    audio_path = AUDIO_DIR / f"{video_id}.wav"
     subtitles = Subtitles()
     image_caption = ImageCaption()
-    audio_path = subtitles.extract_audio(video_path)
-    frames_paths, timestamps = extract_frames(video_path, video_id)
-    describtions = [image_caption.caption_image(path) for path in frames_paths]
-
-    video_subtitles = subtitles.transcribe_audio(audio_path)
-    transcription = session.get(VideoTranscription, video_id)
-    transcription.transcription = video_subtitles
-    transcription.transcription_ready = True
+    audio_path = subtitles.extract_audio(video_path, audio_path)
+    synchronizer = NotesSynchronizer(subtitles, image_caption)
+    notes = synchronizer.process_video(video_path, video_id)
+    summaries = synchronizer.generate_summary(notes)
+    output_dir = Path("output") / str(video_id)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    synchronizer.save_notes(notes, output_dir / "notes.json")
     
+    with open(output_dir / "summary.json", 'w', encoding='utf-8') as f:json.dump(summaries, f, ensure_ascii=False, indent=2)
+    
+    
+    full_transcription = " ".join([note.audio_text for note in notes])
+    
+    transcription = session.get(VideoTranscription, video_id)
+    transcription.transcription = full_transcription
+    transcription.transcription_ready = True
     
     session.add(transcription)
     session.commit()
+    
+    print(f"Заметки сохранены в {output_dir}")
 
 @app.get("/")
 async def root():
