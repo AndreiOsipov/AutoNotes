@@ -89,7 +89,7 @@ class ImageCaption(SingleProcessor):
     
     def caption_image(self, image_path: str):
         image = Image.open(image_path)
-        result = self.image_to_text_pipeline(image)
+        result = self.pipeline(image)
         return result[0]["generated_text"]
 
 class Subtitles(SingleProcessor):
@@ -105,7 +105,7 @@ class Subtitles(SingleProcessor):
 
     def transcribe_audio(self, audio_path: str) -> str:    
         audio_input, sr = librosa.load(audio_path)
-        result = self.asr_pipeline(
+        result = self.pipeline(
             audio_input,
             generate_kwargs={"language": "russian"}
         )
@@ -113,7 +113,7 @@ class Subtitles(SingleProcessor):
 
     def transcribe_audio_with_timestamps(self, audio_path: str) -> dict:
         audio_input, sr = librosa.load(audio_path)
-        result = self.asr_pipeline(
+        result = self.pipeline(
             audio_input,
             generate_kwargs={"language": "russian"}
         )
