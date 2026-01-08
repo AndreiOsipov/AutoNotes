@@ -13,7 +13,7 @@ class VideoTranscription(VideoTranscriptionBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: Optional[int] = Field(default=None, foreign_key="users.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    finished_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
 
 class VideoTranscriptionPublic(VideoTranscriptionBase):
     # Поля, которые увидит пользователь в ответе API

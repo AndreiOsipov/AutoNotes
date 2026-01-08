@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 import shutil
 
+from users.users_router import router
 from datetime import datetime
 from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks, Depends
 from db import SessionDep, Users, Session, create_db_and_tables
@@ -19,6 +20,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+app.include_router(router)
 
 
 def write_subtitles(video_path: str, video_id: int, session: Session):
