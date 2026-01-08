@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks
 from db import SessionDep, VideoTranscriptionPublic, VideoTranscription, Session, create_db_and_tables
-from utils.utils import VIDEO_DIR, AUDIO_DIR
-from Subtitles.subtitles import Subtitles, ImageCaption, extract_frames
+from utils.utils import VIDEO_DIR, TEXT_DIR, SUMMARY_POSTFIX
+from subtitles.subtitles import Subtitles, ImageCaption, TextSummarizer
 from NotesSynchronizer.notes_synchronizer import NotesSynchronizer
 
 @asynccontextmanager
@@ -13,6 +13,7 @@ async def lifespan(app: FastAPI):
     create_db_and_tables()
     Subtitles()
     ImageCaption()
+    TextSummarizer()
     yield
 
 
@@ -20,19 +21,18 @@ app = FastAPI(lifespan=lifespan)
 
 
 def write_subtitles(video_path: str, video_id, session: Session):
-    audio_path = AUDIO_DIR / f"{video_id}.wav"
     subtitles = Subtitles()
     image_caption = ImageCaption()
-    audio_path = subtitles.extract_audio(video_path, audio_path)
-    synchronizer = NotesSynchronizer(subtitles, image_caption)
-    notes = synchronizer.process_video(video_path, video_id)
-    summaries = synchronizer.generate_summary(notes)
-    output_dir = Path("output") / str(video_id)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    synchronizer.save_notes(notes, output_dir / "notes.json")
+    summarizer= TextSummarizer()
+
+    synchronizer = NotesSynchronizer(subtitles, image_caption, summarizer)
+    notes = synchronizer.synchronize(video_path, video_id)
+    video_summary = synchronizer.generate_summary(notes)
     
-    with open(output_dir / "summary.json", 'w', encoding='utf-8') as f:json.dump(summaries, f, ensure_ascii=False, indent=2)
-    
+    video_summary_file = str(TEXT_DIR / f"{video_id}_{SUMMARY_POSTFIX}")
+
+    with open(video_summary_file, 'w', encoding='utf-8') as f:
+        json.dump(video_summary.summary_dict, f, ensure_ascii=False, indent=2)
     
     full_transcription = " ".join([note.audio_text for note in notes])
     
@@ -42,8 +42,7 @@ def write_subtitles(video_path: str, video_id, session: Session):
     
     session.add(transcription)
     session.commit()
-    
-    print(f"Заметки сохранены в {output_dir}")
+
 
 @app.get("/")
 async def root():
@@ -58,16 +57,15 @@ def process_video(video: UploadFile, session: SessionDep, background_tasks: Back
     session.add(video_transcription)
     session.commit()
     session.refresh(video_transcription)
-    video_path = str(VIDEO_DIR / str(video_transcription.id)) + "_" + str(video.filename)
-    with open(video_path, 'wb') as f:
+    video_path = VIDEO_DIR / f"{video_transcription.id}_{video.filename}"    with open(video_path, 'wb') as f:
         shutil.copyfileobj(video.file, f)
 
     background_tasks.add_task(write_subtitles, video_path, video_transcription.id, session)
     return video_transcription
 
 
-@app.get("/results/{transcription_id}", response_model=VideoTranscriptionPublic)
-def download_reult(
+@app.get("/transcription/{transcription_id}", response_model=VideoTranscriptionPublic)
+def download_transcription(
     transcription_id: int,
     session: SessionDep):
     
@@ -75,3 +73,13 @@ def download_reult(
     if not transcription:
         raise HTTPException(status_code=404, detail=f"transcription with id {transcription_id} not found")
     return transcription
+
+
+@app.get("/summary/{transcription_id}")
+def download_summary(transcription_id: int):
+    video_summary_file = str(TEXT_DIR / f"{transcription_id}_{SUMMARY_POSTFIX}")
+    if not(Path(video_summary_file).exists()):
+        raise HTTPException(status_code=404, detail=f"transcription with id {transcription_id} not found")
+    
+    with open(video_summary_file, 'r', encoding='utf-8') as f:
+        return json.load(f)

@@ -1,44 +1,72 @@
-import json
 from dataclasses import dataclass
-from typing import List, Dict, Optional, Tuple
-from datetime import datetime
-import torch
+from typing import List, Dict, Tuple
 
-# Импортируем существующие классы
-from Subtitles.subtitles import Subtitles, ImageCaption, extract_frames
-from utils.utils import AUDIO_DIR, IMAGES_DIR
+from subtitles.subtitles import Subtitles, ImageCaption, TextSummarizer, extract_frames, extract_audio
+from utils.utils import AUDIO_DIR
 
 
 @dataclass
 class TimestampedNote:
     """Структура для хранения синхронизированной заметки с временной меткой."""
-    timestamp_ms: int  # Время в миллисекундах от начала видео
-    audio_text: str    # Транскрибированный текст с аудио
-    image_description: str  # Описание кадра
-    combined_text: str      # Объединенный текст для суммаризации
-    summary: Optional[str] = None  # Краткое резюме сегмента
+    timestamp_ms: int  
+    audio_text: str
+    image_description: str  
+    combined_text: str
 
+    @property
+    def timestamp_mmss(self) -> str:
+        """Конвертирует миллисекунды в формат MM:SS."""
+        seconds = self.timestamp_ms // 1000
+        minutes = seconds // 60
+        seconds = seconds % 60
+        return f"{minutes:02d}:{seconds:02d}"
+
+@dataclass
+class TimestampedSummary:
+    time: str
+    summary: str
+    has_visual: bool
+
+    @property
+    def segment_summary_dict(self):
+        return {
+            "time": self.time,
+            "summary": self.summary,
+            "has_visual": self.has_visual
+        }
+
+@dataclass
+class VideoSummary:
+    concise: str
+    detailed: str
+    key_points: list[str]
+    timestamped_summaries: list[TimestampedSummary]
+
+    @property
+    def summary_dict(self):
+        return {
+            "concise": self.concise,
+            "detailed": self.detailed,
+            "key_points": self.key_points,
+            "timestamped_summaries": [timestamped_summary.segment_summary_dict for timestamped_summary in self.timestamped_summaries]
+        }
 
 class NotesSynchronizer:
 
-    def __init__(self, subtitles_model: Optional[Subtitles] = None, 
-                 image_caption_model: Optional[ImageCaption] = None):
-        self.subtitles = subtitles_model or Subtitles()
-        self.image_caption = image_caption_model or ImageCaption()
+    def __init__(self, subtitles_model: Subtitles, image_caption_model: ImageCaption, summarizer: TextSummarizer):
+        self.subtitles = subtitles_model
+        self.image_caption = image_caption_model
+        self.summarizer = summarizer
         
-    def process_video(self, video_path: str, video_id: int) -> List[TimestampedNote]:
-        # 1. Извлечение аудио и транскрибация
+    def synchronize(self, video_path: str, video_id: int) -> List[TimestampedNote]:
+        """синхронизирует кадры видео с отрезками звука"""
         audio_path = AUDIO_DIR / f"{video_id}.wav"
-        audio_path = self.subtitles.extract_audio(video_path, str(audio_path))
-        
-        # Получаем транскрипт с временными метками (нужно модифицировать Subtitles)
+        audio_path = extract_audio(video_path, str(audio_path))        
         transcription_result = self.subtitles.transcribe_audio_with_timestamps(audio_path)
         
-        # 2. Извлечение и описание кадров
         frames_paths, timestamps = extract_frames(video_path, video_id)
         descriptions = [self.image_caption.caption_image(str(path)) for path in frames_paths]
         
-        # 3. Синхронизация по времени
         synchronized_notes = self._synchronize_by_timestamp(
             transcription_result, 
             list(zip(timestamps, descriptions))
@@ -124,22 +152,17 @@ class NotesSynchronizer:
         
         return notes
     
-    def generate_summary(self,  notes: List[TimestampedNote],  summary_type: str = "concise") -> Dict:
-
-        # Объединяем весь текст для суммаризации
+    def generate_summary(self,  notes: List[TimestampedNote]):
+        """генерирует саммари по уже синхронизированным частям видео"""
         full_text = " ".join([note.combined_text for note in notes])
-        
-        # Используем суммаризатор (нужно будет реализовать или интегрировать)
-        summarizer = TextSummarizer()
-        
-        summaries = {
-            "concise": summarizer.summarize(full_text, max_length=150),
-            "detailed": summarizer.summarize(full_text, max_length=300),
-            "key_points": self._extract_key_points(notes),
-            "timestamped_summary": self._create_timestamped_summary(notes)
-        }
-        
-        return summaries
+
+        return VideoSummary(
+            self.summarizer.summarize(full_text, max_length=150),
+            self.summarizer.summarize(full_text, max_length=300),
+            self._extract_key_points(notes),
+            self._create_timestamped_summary(notes)
+        )
+
     
     def _extract_key_points(self, notes: List[TimestampedNote]) -> List[str]:
         """Извлекает ключевые моменты из заметок."""
@@ -155,145 +178,12 @@ class NotesSynchronizer:
         
         return list(set(key_points))[:10]  # Ограничиваем 10 ключевыми пунктами
     
-    def _create_timestamped_summary(self, notes: List[TimestampedNote]) -> List[Dict]:
+    def _create_timestamped_summary(self, notes: List[TimestampedNote]):
         """Создает суммаризацию с привязкой ко времени."""
-        timestamped_summary = []
-        
-        for note in notes:
-            # Конвертируем время в читаемый формат
-            time_str = self._ms_to_timestamp(note.timestamp_ms)
-            
-            # Краткое описание сегмента (первые 100 символов)
-            segment_summary = note.combined_text[:100] + "..." if len(note.combined_text) > 100 else note.combined_text
-            
-            timestamped_summary.append({
-                "time": time_str,
-                "summary": segment_summary,
-                "has_visual": bool(note.image_description.strip())
-            })
-        
-        return timestamped_summary
-    
-    def _ms_to_timestamp(self, milliseconds: int) -> str:
-        """Конвертирует миллисекунды в формат MM:SS."""
-        seconds = milliseconds // 1000
-        minutes = seconds // 60
-        seconds = seconds % 60
-        return f"{minutes:02d}:{seconds:02d}"
-    
-    def save_notes(self, notes: List[TimestampedNote], output_path: str):
-        """Сохраняет синхронизированные заметки в файл."""
-        notes_dict = {
-            "generated_at": datetime.now().isoformat(),
-            "total_segments": len(notes),
-            "notes": [
-                {
-                    "timestamp_ms": note.timestamp_ms,
-                    "timestamp": self._ms_to_timestamp(note.timestamp_ms),
-                    "audio_text": note.audio_text,
-                    "image_description": note.image_description,
-                    "combined_text": note.combined_text,
-                    "summary": note.summary
-                }
-                for note in notes
-            ]
-        }
-        
-        with open(output_path, 'w', encoding='utf-8') as f:
-            json.dump(notes_dict, f, ensure_ascii=False, indent=2)
-
-
-class TextSummarizer:
-    def __init__(self, model_name: str = "IlyaGusev/rut5_base_sum_gazeta"):
-        try:
-            from transformers import pipeline
-            self.summarizer = pipeline(
-                "summarization",
-                model=model_name,
-                device=0 if torch.cuda.is_available() else -1
-            )
-            self.model_loaded = True
-        except ImportError:
-            print("Transformers не установлен. Используется простой суммаризатор.")
-            self.summarizer = None
-            self.model_loaded = False
-    
-    def summarize(self, text: str, max_length: int = 150) -> str:
-        """Суммаризирует текст."""
-        if not text.strip():
-            return ""
-            
-        if self.model_loaded and self.summarizer:
-            try:
-                # Разбиваем текст на части, если он слишком длинный
-                if len(text) > 1000:
-                    chunks = self._split_text(text, chunk_size=800)
-                    summaries = []
-                    for chunk in chunks:
-                        result = self.summarizer(chunk, max_length=max_length, min_length=30, do_sample=False)
-                        summaries.append(result[0]['summary_text'])
-                    return " ".join(summaries)
-                else:
-                    result = self.summarizer(text, max_length=max_length, min_length=30, do_sample=False)
-                    return result[0]['summary_text']
-            except Exception as e:
-                print(f"Ошибка при суммаризации: {e}")
-                # Используем простую суммаризацию в случае ошибки
-                return self._simple_summarize(text, max_length)
-        else:
-            return self._simple_summarize(text, max_length)
-    
-    def _split_text(self, text: str, chunk_size: int = 800) -> List[str]:
-        """Разбивает текст на чанки."""
-        sentences = text.split('. ')
-        chunks = []
-        current_chunk = []
-        current_length = 0
-        
-        for sentence in sentences:
-            sentence_length = len(sentence)
-            if current_length + sentence_length > chunk_size and current_chunk:
-                chunks.append('. '.join(current_chunk) + '.')
-                current_chunk = [sentence]
-                current_length = sentence_length
-            else:
-                current_chunk.append(sentence)
-                current_length += sentence_length
-        
-        if current_chunk:
-            chunks.append('. '.join(current_chunk) + '.')
-        
-        return chunks
-    
-    def _simple_summarize(self, text: str, max_length: int = 150) -> str:
-        """Простая суммаризация на основе эвристик."""
-        sentences = text.split('. ')
-        
-        if len(sentences) <= 3:
-            return text
-        
-        # Выбираем первые, последние и самые длинные предложения
-        important_sentences = []
-        
-        # Первое предложение
-        if sentences:
-            important_sentences.append(sentences[0])
-        
-        # Последнее предложение
-        if len(sentences) > 1:
-            important_sentences.append(sentences[-1])
-        
-        # Самые длинные предложения (кроме первого и последнего)
-        middle_sentences = sentences[1:-1] if len(sentences) > 2 else []
-        if middle_sentences:
-            middle_sentences.sort(key=len, reverse=True)
-            for i in range(min(2, len(middle_sentences))):
-                important_sentences.append(middle_sentences[i])
-        
-        summary = '. '.join(sorted(set(important_sentences), key=sentences.index))
-        
-        # Обрезаем если нужно
-        if len(summary) > max_length:
-            summary = summary[:max_length-3] + "..."
-        
-        return summary
+        return [
+            TimestampedSummary(
+                note.timestamp_mmss,
+                note.combined_text[:100] + "..." if len(note.combined_text) > 100 else note.combined_text,
+                bool(note.image_description.strip()))
+            for note in notes
+        ]
