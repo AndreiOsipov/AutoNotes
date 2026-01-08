@@ -39,9 +39,16 @@ PYTHONPATH=. pytest
 ## 🩻 Структура проекта
 ```
 📁 AutoNotes/
+ 📁 .github/
+│   ├─── 📁 workflows/
+│   │    └─── ci.yml
+├── 📁 NotesSynchronizer/
+│   └─── notes_synchronizer.py   
 ├── 📁 config/
 │   └─── config.py
-├── 📁 tests/
+├── 📁 services/
+│   └─── video_service.py
+├── 📁 subtitles/
 │   ├─── 📁 dir_audio/
 │   ├─── 📁 dir_txt/
 │   ├─── 📁 dit_video/
@@ -50,8 +57,12 @@ PYTHONPATH=. pytest
 ├── 📁 tests/
 │   ├─── 📁 unit/
 │   │    ├─── test_main.py
-│   │    ├─── test_subtitles.py
-│   │    └─── test_utils.py
+│   │    ├─── test_video_transcription.py
+│   │    ├─── test_.py
+│   │    ├─── test_.py
+│   │    └─── test_users_router.py
+│   ├─── test_db.py
+│   ├─── test_notes_synchronizer.py
 │   └─── conftest.py
 ├── 📁 users/
 │   ├─── users_router.py
@@ -65,29 +76,27 @@ PYTHONPATH=. pytest
 ├── main.py
 └── requirements.txt
 ```
- - 📁 config/ — ...;
- - config.py — ...;
- - 📁 tests/ — ...;
- - 📁 dir_audio/ — ...;
- - 📁 dir_txt/ — ...;
- - 📁 dit_video/ — ...;
- - 📁 parsed_images/ — ...;
- - subtitles.py — ...;
- - 📁 tests/ — ...;
- - 📁 unit/ — ...;
+ - 📁 config/ — глобальные настройки проекта и валидация .env
+ - 📁 subtitles/ — модуль глубокого анализа медиаконтента
+ - 📁 dir_audio/ — временное хранилище извлеченных звуковых дорожек
+ - 📁 dir_txt/ — промежуточные текстовые результаты транскрипции
+ - 📁 dit_video/ — кэш загруженных видеофайлов
+ - 📁 parsed_images/ — кадры, извлеченные из видео для анализа контента
+ - subtitles.py — реализует интеллектуальную обработку видео через три типа нейросетей
+ - 📁 tests/ — инфраструктура тестирования
+ - 📁 unit/ — изолированные тесты отдельных модулей (API, логика)
  - test_main.py — ...;
  - test_subtitles.py — ...;
  - test_utils.py — ...;
- - conftest.py — ...;
- - 📁 users/ — ...;
+ - conftest.py — глобальные фикстуры (создание тестовой сессии БД)
+ - 📁 users/ — управление пользователями, JWT-авторизация и роутинг
  - users_router.py — ...;
  - users.py — ...;
- - 📁 utils/ — ...;
- - utils.py — ...;
+ - 📁 utils/ — вспомогательные утилиты (логирование, форматтеры)
  - .env — файл с секретами - обязательно добавить в .gitignore;
  - .env.example — файл с примерами секретов для удалённого репозитория;
  - .gitignore — для исключения временных/лишних файлов (рекомендуется);
- - db.py — ...;
+ - db.py — инициализация SQLModel, описание таблиц и связей
  - main.py — основной скрипт (исполняемый файл);
  - requirements.txt — зависимости (опционально).
 
