@@ -4,6 +4,7 @@ from fastapi import status
 from sqlmodel import Session
 
 from db import User
+
 from users.users import get_password_hash
 from tests.test_db import engine_test
 

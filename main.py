@@ -4,12 +4,14 @@ import json
 from pathlib import Path
 from users.users_router import router
 from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks
-from db import SessionDep, VideoTranscriptionPublic, VideoTranscription, Session, create_db_and_tables
+
+from db import User, SessionDep, VideoTranscriptionPublic, VideoTranscription, Session, create_db_and_tables
 from utils.utils import VIDEO_DIR, TEXT_DIR, SUMMARY_POSTFIX
 from subtitles.subtitles import Subtitles, ImageCaption, TextSummarizer
 from NotesSynchronizer.notes_synchronizer import NotesSynchronizer
 
-
+from users.users import get_current_active_user
+from services.video_service import get_user_stats
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
@@ -21,8 +23,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-
 app.include_router(router)
+
 
 def write_subtitles(video_path: str, video_id, session: Session):
     subtitles = Subtitles()
@@ -88,3 +90,7 @@ def download_summary(transcription_id: int):
     
     with open(video_summary_file, 'r', encoding='utf-8') as f:
         return json.load(f)
+
+@app.get("/users/stats")
+def read_stats(session: SessionDep, current_user: User = Depends(get_current_active_user)):
+    return get_user_stats(session, current_user.id)
