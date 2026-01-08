@@ -4,8 +4,8 @@ from sqlmodel import Session, SQLModel, create_engine, Field
 from datetime import datetime 
 class VideoTranscriptionPublic(SQLModel):
     id: int
-    transcription: str
-    transcription_ready: bool
+    transcription: str = Field(default="", nullable=False)
+    transcription_ready: bool = Field(default=False)
     user_id: int 
 class VideoTranscription(VideoTranscriptionPublic, table=True):
     # Поля только для базы (с ID и временем)

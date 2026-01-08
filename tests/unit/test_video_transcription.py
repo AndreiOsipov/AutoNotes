@@ -14,15 +14,17 @@ def session():
 
 
 def test_user_stats_calculation(session: Session):
-    # 1. Создаем тестовое видео (начало 10 минут назад)
-    now = datetime.now(UTC)
-    start_time = now - timedelta(minutes=10)
-    video = VideoTranscription(user_id=1, created_at=start_time)
-    session.add(video)
-    session.commit()
-
-    video.completed_at = now
-    video.transcription_ready = True
+    start_time = datetime.now(UTC) - timedelta(minutes=10)
+    
+    # Явно передаем путь к видео и текст, чтобы не ловить ошибки базы
+    video = VideoTranscription(
+        user_id=1, 
+        created_at=start_time,
+        completed_at= datetime.now(UTC), 
+        video_path="test.mp4",
+        transcription="", # Гарантируем отсутствие None
+        transcription_ready=False
+    )
     session.add(video)
     session.commit()
 
