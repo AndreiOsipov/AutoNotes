@@ -2,11 +2,13 @@ from contextlib import asynccontextmanager
 import shutil
 import json
 from pathlib import Path
+from users.users_router import router
 from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks
 from db import SessionDep, VideoTranscriptionPublic, VideoTranscription, Session, create_db_and_tables
 from utils.utils import VIDEO_DIR, TEXT_DIR, SUMMARY_POSTFIX
 from subtitles.subtitles import Subtitles, ImageCaption, TextSummarizer
 from NotesSynchronizer.notes_synchronizer import NotesSynchronizer
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -19,6 +21,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+
+app.include_router(router)
 
 def write_subtitles(video_path: str, video_id, session: Session):
     subtitles = Subtitles()
