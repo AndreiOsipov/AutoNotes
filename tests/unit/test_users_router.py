@@ -1,0 +1,126 @@
+import pytest
+
+from fastapi import status
+from sqlmodel import Session
+
+from db import Users
+from users.users import get_password_hash
+from tests.test_db import engine_test
+
+
+def create_user_in_db(username: str, password: str):
+    with Session(engine_test) as session:
+        user = Users(
+            username=username,
+            hashed_password=get_password_hash(password)
+        )
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        return user
+
+
+@pytest.mark.asyncio
+async def test_register_success(asyncio_client):
+    response = await asyncio_client.post(
+        "/register",
+        json={"username": "user1", "password": "secret"},
+    )
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["username"] == "user1"
+    assert "id" in data
+
+
+@pytest.mark.asyncio
+async def test_register_duplicate_username(asyncio_client):
+    # первый пользователь
+    await asyncio_client.post(
+        "/register",
+        json={"username": "dupuser", "password": "secret"},
+    )
+    # второй с тем же username
+    response = await asyncio_client.post(
+        "/register",
+        json={"username": "dupuser", "password": "secret2"},
+    )
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    data = response.json()
+    assert data["detail"] == "Username already registered"
+
+
+@pytest.mark.asyncio
+async def test_login_success(asyncio_client):
+    username = "loginuser"
+    password = "secret"
+    create_user_in_db(username, password)
+
+    response = await asyncio_client.post(
+        "/token",
+        data={"username": username, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+
+
+@pytest.mark.asyncio
+async def test_login_wrong_password(asyncio_client):
+    username = "wrongpassuser"
+    password = "secret"
+    create_user_in_db(username, password)
+
+    response = await asyncio_client.post(
+        "/token",
+        data={"username": username, "password": "wrong"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    data = response.json()
+    assert data["detail"] == "Incorrect username or password"
+
+
+@pytest.mark.asyncio
+async def test_login_nonexistent_user(asyncio_client):
+    response = await asyncio_client.post(
+        "/token",
+        data={"username": "no_such_user", "password": "secret"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    data = response.json()
+    assert data["detail"] == "Incorrect username or password"
+
+
+@pytest.mark.asyncio
+async def test_users_me_authorized(asyncio_client):
+    username = "meuser"
+    password = "secret"
+    create_user_in_db(username, password)
+
+    token_resp = await asyncio_client.post(
+        "/token",
+        data={"username": username, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    access_token = token_resp.json()["access_token"]
+
+    response = await asyncio_client.get(
+        "/users/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["username"] == username
+
+
+@pytest.mark.asyncio
+async def test_users_me_unauthorized(asyncio_client):
+    response = await asyncio_client.get("/users/me")
+    assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)

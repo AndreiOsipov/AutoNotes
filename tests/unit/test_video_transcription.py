@@ -2,7 +2,7 @@ import pytest
 from datetime import datetime, timedelta
 from sqlmodel import Session, SQLModel, create_engine
 from models import VideoTranscription
-from services.video_service import get_user_stats, mark_video_done
+from services.video_service import get_user_stats
 
 @pytest.fixture
 def session():
@@ -18,8 +18,10 @@ def test_user_stats_calculation(session: Session):
     session.add(video)
     session.commit()
 
-    # 2. Завершаем обработку сейчас
-    mark_video_done(session, video.id, "Test text")
+    video.completed_at = datetime.utcnow()
+    video.transcription_ready = True
+    session.add(video)
+    session.commit()
 
     # 3. Проверяем статистику
     stats = get_user_stats(session, user_id=1)
