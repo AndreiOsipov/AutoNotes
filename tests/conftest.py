@@ -30,6 +30,12 @@ def client():
 
 
 @pytest.fixture
+async def asyncio_client():
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        yield ac
+
+
+@pytest.fixture
 def sample_video():
     """
     Тестовые данные для POST /process/
@@ -65,9 +71,3 @@ def mock_video_no_audio():
 def mock_pipeline_result():
     """Мок результата транскрипции"""
     return {"text": "Привет мир"}
-
-
-@pytest.fixture
-async def client():
-    async with AsyncClient(app=app, base_url="http://test") as ac:
-        yield ac
