@@ -19,7 +19,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 # Настройки
 SECRET_KEY = config.jwtoken.secret_key
 ALGORITHM = config.jwtoken.algorithm
-ACCESS_TOKEN_EXPIRE_MINUTES = config.jwtoken.access_token_expire_minutes
+ACCESS_TOKEN_EXPIRE_MINUTES = int(config.jwtoken.access_token_expire_minutes)
 
 
 pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
