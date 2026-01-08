@@ -2,9 +2,23 @@ from typing import Annotated
 from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine, Field
 
-class Users(SQLModel, table=True):
+class VideoTranscriptionPublic(SQLModel):
+    id: int
+    transcription: str
+    transcription_ready: bool
+
+class VideoTranscription(VideoTranscriptionPublic, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    username: str = Field(index=True, unique=True)
+    video_path: str | None = Field(default=None)
+
+class UserOut(SQLModel):
+    id: int
+    username: str   
+    disabled: bool
+
+class User(UserOut, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    username: str = Field(index=True, unique=True, min_length=3, max_length=20)
     hashed_password: str
     disabled: bool = False
 
