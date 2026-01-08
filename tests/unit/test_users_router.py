@@ -1,25 +1,23 @@
 import pytest
 
 from fastapi import status
+from sqlmodel import Session
 
 from db import User
 from users.users import get_password_hash
-from tests.test_db import TestingSessionLocal
+from tests.test_db import engine_test
 
 
 def create_user_in_db(username: str, password: str):
-    db = TestingSessionLocal()
-    try:
+    with Session(engine_test) as session:
         user = User(
             username=username,
             hashed_password=get_password_hash(password)
         )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+        session.add(user)
+        session.commit()
+        session.refresh(user)
         return user
-    finally:
-        db.close()
 
 
 @pytest.mark.asyncio

@@ -1,20 +1,24 @@
 import pytest
+import pytest_asyncio
 
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from sqlmodel import SQLModel
 from fastapi.testclient import TestClient
 
 from main import app
 from db import get_session
 from unittest.mock import MagicMock
-from tests.test_db import engine_test, override_get_session
+from tests.test_db import engine_test, get_test_session
 
 
-app.dependency_overrides[get_session] = override_get_session
+app.dependency_overrides[get_session] = get_test_session
 
 
 @pytest.fixture(scope="session", autouse=True)
 def create_test_db():
+    """
+    Создание тестовой базы данных
+    """
     SQLModel.metadata.drop_all(bind=engine_test)
     SQLModel.metadata.create_all(bind=engine_test)
     yield
@@ -24,14 +28,21 @@ def create_test_db():
 @pytest.fixture
 def client():
     """
-    Общий HTTP-клиент для всех API-тестов
+    Общий HTTP-клиент для всех синхронных API-тестов
     """
     return TestClient(app)
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def asyncio_client():
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    """
+    Общий HTTP-клиент для всех асинхронных API-тестов
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport, 
+        base_url="http://test"
+    ) as ac:
         yield ac
 
 
