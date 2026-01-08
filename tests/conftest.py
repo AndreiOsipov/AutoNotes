@@ -1,4 +1,5 @@
 import pytest
+from sqlmodel import SQLModel
 import sys
 from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -11,7 +12,24 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from main import app
+from db import get_session
 from unittest.mock import MagicMock
+from tests.test_db import engine_test, get_test_session
+
+
+app.dependency_overrides[get_session] = get_test_session
+
+
+@pytest.fixture(scope="session", autouse=True)
+def create_test_db():
+    """
+    Создание тестовой базы данных
+    """
+    SQLModel.metadata.drop_all(bind=engine_test)
+    SQLModel.metadata.create_all(bind=engine_test)
+    yield
+    SQLModel.metadata.drop_all(bind=engine_test)
+
 
 TEST_SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
@@ -19,7 +37,7 @@ TEST_SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 @pytest.fixture
 def client():
     """
-    Общий HTTP-клиент для всех API-тестов
+    Общий HTTP-клиент для всех синхронных API-тестов
     """
     return TestClient(app)
 

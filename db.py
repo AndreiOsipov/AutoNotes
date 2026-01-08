@@ -1,54 +1,64 @@
 from typing import Annotated
 from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine, Field
-from datetime import datetime, timezone
+
+from datetime import datetime , UTC
 from pydantic import ConfigDict
 
 class VideoTranscriptionPublic(SQLModel):
     id: int
-    transcription: str
-    transcription_ready: bool
-
+    transcription: str = Field(default="", nullable=False)
+    transcription_ready: bool = Field(default=False)
+    user_id: int 
 class VideoTranscription(VideoTranscriptionPublic, table=True):
+    # Поля только для базы (с ID и временем)
     id: int | None = Field(default=None, primary_key=True)
+    user_id: int | None = Field(default=None, foreign_key="user.id")
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: datetime | None = None
     video_path: str | None = Field(default=None)
 
-class Users(SQLModel, table=True):
+
+class UserOut(SQLModel):
+    id: int
+    username: str   
+    disabled: bool
+
+class User(UserOut, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    username: str = Field(index=True, unique=True)
+    username: str = Field(index=True, unique=True, min_length=3, max_length=20)
     hashed_password: str
     disabled: bool = False
 
+
+
 # Модель под создание отзыва
 class ReviewCreate(SQLModel):
-    username: str
-    transcription_id: int | None
-    rating: int = Field(ge=1, le=5)
-    comment: str = Field(max_length=2000)
-
-# Модель под запрос отзыва
-class ReviewResponse(SQLModel):
-    username: str
-    transcription_id: int | None
-    rating: int
-    comment: str
-    created_dt_tm: datetime
-    
-    model_config = ConfigDict(from_attributes=True)
-
-
-# Отзывы
-class Review(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.id", index=True)
+    username: str 
     transcription_id: int | None = Field(
         default=None,
         foreign_key="videotranscription.id", 
         index=True
     )
+    
     rating: int = Field(ge=1, le=5)
     comment: str = Field(max_length=2000)
-    created_dt_tm: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+
+# Модель под запрос отзыва
+class ReviewResponse(ReviewCreate):
+    created_dt_tm: datetime
+    
+ 
+
+
+# Отзывы
+class Review(ReviewResponse, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    
+    
+    created_dt_tm: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
 
 def create_db_and_tables():
