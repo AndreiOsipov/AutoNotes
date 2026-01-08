@@ -155,7 +155,7 @@ class TextSummarizer(SingleProcessor):
             result = self.pipeline(text, max_length=max_length)
             return result[0]['summary_text']
         
-    def _split_text(self, text: str, chunk_size: int = 800) -> List[str]:
+    def _split_text(self, text: str, chunk_size: int = 800) -> list[str]:
         """Разбивает текст на чанки."""
         sentences = text.split('. ')
         chunks = []

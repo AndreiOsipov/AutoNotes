@@ -57,7 +57,8 @@ def process_video(video: UploadFile, session: SessionDep, background_tasks: Back
     session.add(video_transcription)
     session.commit()
     session.refresh(video_transcription)
-    video_path = VIDEO_DIR / f"{video_transcription.id}_{video.filename}"    with open(video_path, 'wb') as f:
+    video_path = VIDEO_DIR / f"{video_transcription.id}_{video.filename}"
+    with open(video_path, 'wb') as f:
         shutil.copyfileobj(video.file, f)
 
     background_tasks.add_task(write_subtitles, video_path, video_transcription.id, session)
