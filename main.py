@@ -3,11 +3,15 @@ import shutil
 import json
 from pathlib import Path
 from users.users_router import router
-from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks
-from db import SessionDep, VideoTranscriptionPublic, VideoTranscription, Session, create_db_and_tables
+from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks, Depends
+from datetime import datetime, UTC
+from db import User, SessionDep, VideoTranscriptionPublic, VideoTranscription, Session, create_db_and_tables
 from utils.utils import VIDEO_DIR, TEXT_DIR, SUMMARY_POSTFIX
 from subtitles.subtitles import Subtitles, ImageCaption, TextSummarizer
 from NotesSynchronizer.notes_synchronizer import NotesSynchronizer
+
+from users.users import get_current_active_user
+from services.video_service import get_user_stats
 
 
 @asynccontextmanager
@@ -21,10 +25,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-
 app.include_router(router)
 
+
 def write_subtitles(video_path: str, video_id, session: Session):
+    transcription = session.get(VideoTranscription, video_id)
+    transcription.created_at = datetime.now(UTC)
     subtitles = Subtitles()
     image_caption = ImageCaption()
     summarizer= TextSummarizer()
@@ -40,23 +46,24 @@ def write_subtitles(video_path: str, video_id, session: Session):
     
     full_transcription = " ".join([note.audio_text for note in notes])
     
-    transcription = session.get(VideoTranscription, video_id)
+    
     transcription.transcription = full_transcription
     transcription.transcription_ready = True
-    
+    transcription.completed_at = datetime.now(UTC)
     session.add(transcription)
     session.commit()
 
 
 @app.get("/")
-async def root():
+def root():
     return {"message": "Hello World"}
 
 @app.post("/process/", response_model=VideoTranscriptionPublic)
-def process_video(video: UploadFile, session: SessionDep, background_tasks: BackgroundTasks):
+def process_video(video: UploadFile, session: SessionDep, background_tasks: BackgroundTasks,current_user: User = Depends(get_current_active_user)):
     video_transcription = VideoTranscription(
         transcription = "",
         transcription_ready = False,
+        user_id=current_user.id
     )
     session.add(video_transcription)
     session.commit()
@@ -72,7 +79,7 @@ def process_video(video: UploadFile, session: SessionDep, background_tasks: Back
 @app.get("/transcription/{transcription_id}", response_model=VideoTranscriptionPublic)
 def download_transcription(
     transcription_id: int,
-    session: SessionDep):
+    session: SessionDep, current_user: User = Depends(get_current_active_user)):
     
     transcription = session.get(VideoTranscription, transcription_id)
     if not transcription:
@@ -81,10 +88,14 @@ def download_transcription(
 
 
 @app.get("/summary/{transcription_id}")
-def download_summary(transcription_id: int):
+def download_summary(transcription_id: int, current_user: User = Depends(get_current_active_user)):
     video_summary_file = str(TEXT_DIR / f"{transcription_id}_{SUMMARY_POSTFIX}")
     if not(Path(video_summary_file).exists()):
         raise HTTPException(status_code=404, detail=f"transcription with id {transcription_id} not found")
     
     with open(video_summary_file, 'r', encoding='utf-8') as f:
         return json.load(f)
+
+@app.get("/users/stats")
+def read_stats(session: SessionDep, current_user: User = Depends(get_current_active_user)):
+    return get_user_stats(session, current_user.id)

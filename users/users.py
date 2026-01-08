@@ -10,9 +10,9 @@ from fastapi.security import OAuth2PasswordBearer
 
 from db import User, get_session
 from config.config import Config, load_config
+from utils.utils import ENV_FILE
 
-
-config: Config = load_config()
+config: Config = load_config(ENV_FILE)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
@@ -20,7 +20,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 SECRET_KEY = config.jwtoken.secret_key
 ALGORITHM = config.jwtoken.algorithm
 ACCESS_TOKEN_EXPIRE_MINUTES = int(config.jwtoken.access_token_expire_minutes)
-
 
 pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
 
@@ -70,7 +69,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 
 
 # Получение текущего пользователя
-async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_session)):
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_session)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -78,7 +77,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
+        username: str | None = payload.get("sub")
         if username is None:
             raise credentials_exception
     except JWTError:
@@ -89,7 +88,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     return user
 
 
-async def get_current_active_user(current_user: User = Depends(get_current_user)):
+def get_current_active_user(current_user: User = Depends(get_current_user)):
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
