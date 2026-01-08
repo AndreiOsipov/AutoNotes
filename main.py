@@ -5,17 +5,18 @@ from pathlib import Path
 from users.users_router import router
 from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks, Depends, Query
 from datetime import datetime, UTC
-from db import User, SessionDep, VideoTranscriptionPublic, VideoTranscription, ReviewCreate, ReviewResponse, Session, create_db_and_tables
+from db import User, SessionDep, VideoTranscriptionPublic, VideoTranscription, ReviewCreate, ReviewResponse, Session, create_db_and_tables, Review
 from utils.utils import VIDEO_DIR, TEXT_DIR, SUMMARY_POSTFIX
 from subtitles.subtitles import Subtitles, ImageCaption, TextSummarizer
 from NotesSynchronizer.notes_synchronizer import NotesSynchronizer
+from sqlmodel import  select, join, desc, asc
 
 
 from users.users import get_current_active_user
 from services.video_service import get_user_stats
 
 
-from reviews.reviews import ReviewCRUD
+
 from typing import List
 
 @asynccontextmanager
@@ -107,70 +108,93 @@ def read_stats(session: SessionDep, current_user: User = Depends(get_current_act
   
 # Создание отзыва
 @app.post("/reviews/", response_model=ReviewResponse)
-async def create_review(
+def create_review(
     review: ReviewCreate,
-    session: SessionDep):
-    try:
-        review_data = review.dict()
-        created_review = ReviewCRUD.create_review(session, review_data)
-        return ReviewResponse(
-            username=created_review.username,
-            transcription_id=created_review.transcription_id,
-            rating=created_review.rating,
-            comment=created_review.comment,
-            created_dt_tm=created_review.created_dt_tm
+    session: SessionDep, current_user: User = Depends(get_current_active_user)):  
+    review = Review(
+            username= current_user.username ,
+            user_id=current_user.id,
+            transcription_id=review.transcription_id,
+            rating=review.rating,
+            comment=review.comment
         )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        session.rollback()
-        raise HTTPException(
-            status_code=500, 
-            detail=str(e)
-        )
+    session.add(review)
+    session.commit()
+    session.refresh(review)
+    return review
+    
 
 
 # Запрос отзывов без transcription_id (отзывы на сервис)
 @app.get("/reviews", response_model=List[ReviewResponse])
-async def get_service_reviews(
+def get_service_reviews(
     session: SessionDep,
     limit: int = Query(10, ge=1, le=100),
     sort_by: str = Query("newest", pattern="^(newest|oldest|best|worst)$")):
-    try:
-        reviews = ReviewCRUD.get_service_reviews(
-            session=session,
-            limit=limit,
-            sort_by=sort_by
+    statement = (
+            select(
+                Review.id,
+                User.username,
+                Review.transcription_id,
+                Review.rating,
+                Review.comment,
+                Review.created_dt_tm
+            )
+            .select_from(join(Review, User, Review.user_id == User.id))
+            .where(Review.transcription_id.is_(None))
         )
-        return reviews
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
+    if sort_by == "newest":
+        statement = statement.order_by(desc(Review.created_dt_tm))
+    elif sort_by == "oldest":
+         statement = statement.order_by(asc(Review.created_dt_tm))
+    elif sort_by == "best":
+        statement = statement.order_by(
+            desc(Review.rating), 
+            desc(Review.created_dt_tm)
+        )
+    elif sort_by == "worst":
+        statement = statement.order_by(
+            asc(Review.rating), 
+            desc(Review.created_dt_tm)
+        )
+        
+    statement = statement.limit(limit)
+    return session.exec(statement).all()
 
 
 # Запрос отзывов на transcription
 @app.get("/reviews/{transcription_id}", response_model=List[ReviewResponse])
-async def get_transcription_reviews(
-    transcription_id: int,
+def get_transcription_reviews(
     session: SessionDep,
+    transcription_id : int,
     limit: int = Query(10, ge=1, le=100),
-    sort_by: str = Query("newest", pattern="^(newest|oldest|best|worst)$")
-):
-    try:
-        reviews = ReviewCRUD.get_transcription_reviews(
-            session=session,
-            transcription_id=transcription_id,
-            limit=limit,
-            sort_by=sort_by
+    sort_by: str = Query("newest", pattern="^(newest|oldest|best|worst)$")):
+    statement = (
+            select(
+                Review.id,
+                User.username,
+                Review.transcription_id,
+                Review.rating,
+                Review.comment,
+                Review.created_dt_tm
+            )
+            .select_from(join(Review, User, Review.user_id == User.id))
+            .where(Review.transcription_id == transcription_id)
         )
-        return reviews
-    except ValueError as e:
-        if "transcription_id not found" in str(e):
-            raise HTTPException(status_code=404, detail=str(e))
-        else:
-            raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    if sort_by == "newest":
+        statement = statement.order_by(desc(Review.created_dt_tm))
+    elif sort_by == "oldest":
+         statement = statement.order_by(asc(Review.created_dt_tm))
+    elif sort_by == "best":
+        statement = statement.order_by(
+            desc(Review.rating), 
+            desc(Review.created_dt_tm)
+        )
+    elif sort_by == "worst":
+        statement = statement.order_by(
+            asc(Review.rating), 
+            desc(Review.created_dt_tm)
+        )
+        
+    statement = statement.limit(limit)
+    return session.exec(statement).all()

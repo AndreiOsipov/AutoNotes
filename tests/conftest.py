@@ -1,5 +1,5 @@
 import pytest
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, Session
 import sys
 from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parents[1]
