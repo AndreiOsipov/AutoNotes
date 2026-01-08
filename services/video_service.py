@@ -1,6 +1,5 @@
-from datetime import datetime
 from sqlmodel import Session, select
-from models import VideoTranscription
+from db import VideoTranscription
 
 def get_user_stats(session: Session, user_id: int):
     """Считает количество видео и среднее время обработки для юзера"""

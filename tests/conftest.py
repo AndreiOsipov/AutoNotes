@@ -1,7 +1,4 @@
 import pytest
-import pytest_asyncio
-
-from httpx import AsyncClient, ASGITransport
 from sqlmodel import SQLModel
 from fastapi.testclient import TestClient
 
@@ -31,19 +28,6 @@ def client():
     Общий HTTP-клиент для всех синхронных API-тестов
     """
     return TestClient(app)
-
-
-@pytest_asyncio.fixture
-async def asyncio_client():
-    """
-    Общий HTTP-клиент для всех асинхронных API-тестов
-    """
-    transport = ASGITransport(app=app)
-    async with AsyncClient(
-        transport=transport, 
-        base_url="http://test"
-    ) as ac:
-        yield ac
 
 
 @pytest.fixture

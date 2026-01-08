@@ -3,7 +3,7 @@ import shutil
 import json
 from pathlib import Path
 from users.users_router import router
-from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks
+from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks, Depends
 
 from db import User, SessionDep, VideoTranscriptionPublic, VideoTranscription, Session, create_db_and_tables
 from utils.utils import VIDEO_DIR, TEXT_DIR, SUMMARY_POSTFIX
@@ -12,6 +12,8 @@ from NotesSynchronizer.notes_synchronizer import NotesSynchronizer
 
 from users.users import get_current_active_user
 from services.video_service import get_user_stats
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
@@ -51,7 +53,7 @@ def write_subtitles(video_path: str, video_id, session: Session):
 
 
 @app.get("/")
-async def root():
+def root():
     return {"message": "Hello World"}
 
 @app.post("/process/", response_model=VideoTranscriptionPublic)
