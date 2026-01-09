@@ -1,4 +1,4 @@
-from sqlmodel import Session, select, is_
+from sqlmodel import Session, select
 from db import VideoTranscription
 
 
@@ -6,7 +6,7 @@ def get_user_stats(session: Session, user_id: int):
     """Считает количество видео и среднее время обработки для юзера"""
     statement = select(VideoTranscription).where(
         VideoTranscription.user_id == user_id,
-        is_(VideoTranscription.completed_at),
+        VideoTranscription.completed_at.is_not(None),
     )
     videos = session.exec(statement).all()
 
