@@ -1,5 +1,4 @@
-import tempfile
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 from NotesSynchronizer.notes_synchronizer import (
     NotesSynchronizer,
     TimestampedNote,

@@ -94,7 +94,6 @@ def download_transcription(
     session: SessionDep,
     current_user: User = Depends(get_current_active_user),
 ):
-
     transcription = session.get(VideoTranscription, transcription_id)
     if not transcription:
         raise HTTPException(

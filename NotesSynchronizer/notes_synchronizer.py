@@ -65,7 +65,6 @@ class VideoSummary:
 
 
 class NotesSynchronizer:
-
     def __init__(
         self,
         subtitles_model: Subtitles,
@@ -98,7 +97,6 @@ class NotesSynchronizer:
     def _synchronize_by_timestamp(
         self, transcription_result: Dict, frame_data: List[Tuple[int, str]]
     ) -> List[TimestampedNote]:
-
         notes = []
 
         # Если нет временных меток в транскрипте, используем простую стратегию
@@ -139,7 +137,6 @@ class NotesSynchronizer:
     def _fallback_synchronization(
         self, transcription_text: str, frame_data: List[Tuple[int, str]]
     ) -> List[TimestampedNote]:
-
         notes = []
 
         # Разбиваем текст на предложения
