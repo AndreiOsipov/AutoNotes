@@ -25,7 +25,6 @@ from db import (
     Review,
 )
 
-from datetime import datetime, UTC
 
 from utils.utils import VIDEO_DIR, TEXT_DIR, SUMMARY_POSTFIX
 from subtitles.subtitles import Subtitles, ImageCaption, TextSummarizer

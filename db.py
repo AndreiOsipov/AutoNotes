@@ -1,10 +1,7 @@
 from typing import Annotated
 from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine, Field
-
-
 from datetime import datetime, UTC
-from pydantic import ConfigDict
 
 
 class VideoTranscriptionPublic(SQLModel):
