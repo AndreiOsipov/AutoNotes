@@ -11,10 +11,7 @@ from tests.test_db import engine_test
 
 def create_user_in_db(username: str, password: str):
     with Session(engine_test) as session:
-        user = User(
-            username=username,
-            hashed_password=get_password_hash(password)
-        )
+        user = User(username=username, hashed_password=get_password_hash(password))
         session.add(user)
         session.commit()
         session.refresh(user)
@@ -117,4 +114,7 @@ def test_users_me_authorized(client):
 
 def test_users_me_unauthorized(client):
     response = client.get("/users/me")
-    assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+    assert response.status_code in (
+        status.HTTP_401_UNAUTHORIZED,
+        status.HTTP_403_FORBIDDEN,
+    )

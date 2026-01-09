@@ -1,12 +1,16 @@
 from typing import Annotated
 from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine, Field
-from datetime import datetime 
+from datetime import datetime
+
+
 class VideoTranscriptionPublic(SQLModel):
     id: int
     transcription: str = Field(default="", nullable=False)
     transcription_ready: bool = Field(default=False)
-    user_id: int 
+    user_id: int
+
+
 class VideoTranscription(VideoTranscriptionPublic, table=True):
     # Поля только для базы (с ID и временем)
     id: int | None = Field(default=None, primary_key=True)
@@ -19,8 +23,9 @@ class VideoTranscription(VideoTranscriptionPublic, table=True):
 
 class UserOut(SQLModel):
     id: int
-    username: str   
+    username: str
     disabled: bool
+
 
 class User(UserOut, table=True):
     id: int | None = Field(default=None, primary_key=True)
@@ -28,12 +33,15 @@ class User(UserOut, table=True):
     hashed_password: str
     disabled: bool = False
 
+
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
+
 
 def get_session():
     with Session(engine) as session:
         yield session
+
 
 sql_db_file = "database.db"
 sqlite_url = f"sqlite:///{sql_db_file}"

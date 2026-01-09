@@ -6,7 +6,16 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 
 from db import User, get_session
-from users.users import UserOut, UserCreate, get_password_hash, authenticate_user, create_access_token, Token, get_current_active_user, ACCESS_TOKEN_EXPIRE_MINUTES
+from users.users import (
+    UserOut,
+    UserCreate,
+    get_password_hash,
+    authenticate_user,
+    create_access_token,
+    Token,
+    get_current_active_user,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+)
 
 
 router = APIRouter()
@@ -28,7 +37,9 @@ def register(user: UserCreate, db: Session = Depends(get_session)):
 
 # Логин
 @router.post("/token", response_model=Token)
-def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_session)):
+def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_session)
+):
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(

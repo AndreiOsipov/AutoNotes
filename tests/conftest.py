@@ -35,10 +35,7 @@ def sample_video():
     """
     Тестовые данные для POST /process/
     """
-    return {
-        "ext": "mp4",
-        "data": 123
-    }
+    return {"ext": "mp4", "data": 123}
 
 
 @pytest.fixture
