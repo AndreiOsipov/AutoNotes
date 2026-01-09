@@ -20,7 +20,7 @@ AutoNotes идеально заточен под студентов, иссле�
 git clone [https://github.com/AndreiOsipov/AutoNotes.git](https://github.com/AndreiOsipov/AutoNotes.git)
 cd AutoNotes
 ```
-2. 2. Настройка окружения
+2. Настройка окружения
 Создайте файл .env на основе примера:
 ```bash
 cp .env.example .env
