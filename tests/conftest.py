@@ -2,13 +2,11 @@ import pytest
 from sqlmodel import SQLModel
 import sys
 from pathlib import Path
-ROOT_DIR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT_DIR))
+
 from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from main import app
@@ -17,6 +15,8 @@ from unittest.mock import MagicMock
 from tests.test_db import engine_test, get_test_session
 
 
+ROOT_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT_DIR))
 app.dependency_overrides[get_session] = get_test_session
 
 
@@ -91,10 +91,12 @@ def engine():
 def db_session(engine) -> Session:
     connection = engine.connect()
     transaction = connection.begin()
-    session = sessionmaker(autocommit=False, autoflush=False, bind=connection)()
-    
+    session = sessionmaker(
+        autocommit=False, autoflush=False, bind=connection
+    )()
+
     yield session
-    
+
     session.close()
     transaction.rollback()
     connection.close()
