@@ -39,9 +39,9 @@ PYTHONPATH=. pytest
 ## 🩻 Структура проекта
 ```
 📁 AutoNotes/
- 📁 .github/
-│   ├─── 📁 workflows/
-│   │    └─── ci.yml
+├── 📁 .github/
+│   └─── 📁 workflows/
+│        └─── ci.yml
 ├── 📁 NotesSynchronizer/
 │   └─── notes_synchronizer.py   
 ├── 📁 config/
