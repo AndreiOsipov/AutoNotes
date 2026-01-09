@@ -3,7 +3,13 @@ import shutil
 import json
 from pathlib import Path
 from users.users_router import router
-from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks, Depends
+from fastapi import (
+    FastAPI,
+    UploadFile,
+    HTTPException,
+    BackgroundTasks,
+    Depends,
+)
 from datetime import datetime, UTC
 from db import (
     User,
@@ -88,7 +94,10 @@ def process_video(
     return video_transcription
 
 
-@app.get("/transcription/{transcription_id}", response_model=VideoTranscriptionPublic)
+@app.get(
+    "/transcription/{transcription_id}",
+    response_model=VideoTranscriptionPublic,
+)
 def download_transcription(
     transcription_id: int,
     session: SessionDep,
@@ -105,9 +114,12 @@ def download_transcription(
 
 @app.get("/summary/{transcription_id}")
 def download_summary(
-    transcription_id: int, current_user: User = Depends(get_current_active_user)
+    transcription_id: int,
+    current_user: User = Depends(get_current_active_user),
 ):
-    video_summary_file = str(TEXT_DIR / f"{transcription_id}_{SUMMARY_POSTFIX}")
+    video_summary_file = str(
+        TEXT_DIR / f"{transcription_id}_{SUMMARY_POSTFIX}"
+    )
     if not (Path(video_summary_file).exists()):
         raise HTTPException(
             status_code=404,

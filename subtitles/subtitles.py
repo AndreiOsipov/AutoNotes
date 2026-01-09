@@ -30,7 +30,9 @@ def extract_frames(video_path: str, video_id: int, frame_distance=150):
             ret, frame = capture.read()
             if ret:
                 timestamp = capture.get(cv2.CAP_PROP_POS_MSEC)
-                frame_path = video_imges_temp_dir / f"{frame_number}_{timestamp}.png"
+                frame_path = (
+                    video_imges_temp_dir / f"{frame_number}_{timestamp}.png"
+                )
                 cv2.imwrite(frame_path, frame)
 
                 timestamps.append(timestamp)
@@ -84,7 +86,8 @@ class SingleProcessor:
 class ImageCaption(SingleProcessor):
     def __init__(self):
         super().__init__(
-            model_name="Salesforce/blip-image-captioning-large", task="image-to-text"
+            model_name="Salesforce/blip-image-captioning-large",
+            task="image-to-text",
         )
 
     def caption_image(self, image_path: str):
@@ -106,16 +109,22 @@ class Subtitles(SingleProcessor):
 
     def transcribe_audio(self, audio_path: str) -> str:
         audio_input, sr = librosa.load(audio_path)
-        result = self.pipeline(audio_input, generate_kwargs={"language": "russian"})
+        result = self.pipeline(
+            audio_input, generate_kwargs={"language": "russian"}
+        )
         return result["text"]
 
     def transcribe_audio_with_timestamps(self, audio_path: str) -> dict:
         audio_input, sr = librosa.load(audio_path)
-        result = self.pipeline(audio_input, generate_kwargs={"language": "russian"})
+        result = self.pipeline(
+            audio_input, generate_kwargs={"language": "russian"}
+        )
         chunks = []
         if "chunks" in result:
             for chunk in result["chunks"]:
-                chunks.append({"text": chunk["text"], "timestamp": chunk["timestamp"]})
+                chunks.append(
+                    {"text": chunk["text"], "timestamp": chunk["timestamp"]}
+                )
 
         return {"text": result["text"], "chunks": chunks}
 

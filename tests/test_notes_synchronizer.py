@@ -66,7 +66,11 @@ class TestTimestampedSummary:
             time="01:30", summary="Test summary", has_visual=True
         )
 
-        expected_dict = {"time": "01:30", "summary": "Test summary", "has_visual": True}
+        expected_dict = {
+            "time": "01:30",
+            "summary": "Test summary",
+            "has_visual": True,
+        }
         assert summary.segment_summary_dict == expected_dict
 
 
@@ -76,8 +80,12 @@ class TestVideoSummary:
     def test_summary_dict(self):
         """Тест конвертации VideoSummary в словарь"""
         timestamped_summaries = [
-            TimestampedSummary(time="01:30", summary="Summary 1", has_visual=True),
-            TimestampedSummary(time="02:45", summary="Summary 2", has_visual=False),
+            TimestampedSummary(
+                time="01:30", summary="Summary 1", has_visual=True
+            ),
+            TimestampedSummary(
+                time="02:45", summary="Summary 2", has_visual=False
+            ),
         ]
 
         video_summary = VideoSummary(
@@ -89,7 +97,10 @@ class TestVideoSummary:
         result = video_summary.summary_dict
         assert result["concise"] == "Краткое содержание"
         assert result["detailed"] == "Подробное содержание"
-        assert result["key_points"] == ["Ключевой момент 1", "Ключевой момент 2"]
+        assert result["key_points"] == [
+            "Ключевой момент 1",
+            "Ключевой момент 2",
+        ]
         assert len(result["timestamped_summaries"]) == 2
 
 
@@ -105,7 +116,9 @@ class TestNotesSynchronizer:
     def synchronizer(self, mock_models):
         """Фикстура для NotesSynchronizer"""
         subtitles_mock, image_caption_mock, summarizer_mock = mock_models
-        return NotesSynchronizer(subtitles_mock, image_caption_mock, summarizer_mock)
+        return NotesSynchronizer(
+            subtitles_mock, image_caption_mock, summarizer_mock
+        )
 
     @patch("NotesSynchronizer.notes_synchronizer.extract_audio")
     @patch("NotesSynchronizer.notes_synchronizer.extract_frames")

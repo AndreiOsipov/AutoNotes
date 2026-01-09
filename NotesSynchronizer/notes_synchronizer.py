@@ -75,7 +75,9 @@ class NotesSynchronizer:
         self.image_caption = image_caption_model
         self.summarizer = summarizer
 
-    def synchronize(self, video_path: str, video_id: int) -> List[TimestampedNote]:
+    def synchronize(
+        self, video_path: str, video_id: int
+    ) -> List[TimestampedNote]:
         """синхронизирует кадры видео с отрезками звука"""
         audio_path = AUDIO_DIR / f"{video_id}.wav"
         audio_path = extract_audio(video_path, str(audio_path))
@@ -85,7 +87,8 @@ class NotesSynchronizer:
 
         frames_paths, timestamps = extract_frames(video_path, video_id)
         descriptions = [
-            self.image_caption.caption_image(str(path)) for path in frames_paths
+            self.image_caption.caption_image(str(path))
+            for path in frames_paths
         ]
 
         synchronized_notes = self._synchronize_by_timestamp(
@@ -119,7 +122,9 @@ class NotesSynchronizer:
                     relevant_frames.append(frame_desc)
 
             # Объединяем описания кадров
-            combined_descriptions = " ".join(relevant_frames) if relevant_frames else ""
+            combined_descriptions = (
+                " ".join(relevant_frames) if relevant_frames else ""
+            )
 
             # Создаем комбинированный текст
             combined_text = f"{chunk_text}. {combined_descriptions}"
