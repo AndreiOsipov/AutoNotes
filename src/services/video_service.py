@@ -1,5 +1,6 @@
 from sqlmodel import Session, select
-from db import VideoTranscription
+
+from src.db import VideoTranscription
 
 
 def get_user_stats(session: Session, user_id: int):
@@ -13,9 +14,7 @@ def get_user_stats(session: Session, user_id: int):
     if not videos:
         return {"total_videos": 0, "avg_processing_time": 0}
 
-    durations = [
-        (v.completed_at - v.created_at).total_seconds() for v in videos
-    ]
+    durations = [(v.completed_at - v.created_at).total_seconds() for v in videos]
 
     avg_time = sum(durations) / len(durations)
 

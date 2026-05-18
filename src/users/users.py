@@ -1,16 +1,16 @@
-from sqlmodel import select
-from pydantic import BaseModel
-from jose import JWTError, jwt
-from sqlalchemy.orm import Session
-from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from sqlmodel import select
 
-
-from db import User, get_session
-from config.config import Config, load_config
-from utils.utils import ENV_FILE
+from src.config.config import Config, load_config
+from src.db import User, get_session
+from src.utils.utils import ENV_FILE
 
 config: Config = load_config(ENV_FILE)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")

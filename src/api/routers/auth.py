@@ -1,22 +1,21 @@
+from datetime import timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from datetime import timedelta
-from fastapi import Depends, HTTPException, status, APIRouter
-from fastapi.security import OAuth2PasswordRequestForm
 
-
-from db import User, get_session
-from users.users import (
-    UserOut,
+from src.db import User, get_session
+from src.users.users import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    Token,
     UserCreate,
-    get_password_hash,
+    UserOut,
     authenticate_user,
     create_access_token,
-    Token,
     get_current_active_user,
-    ACCESS_TOKEN_EXPIRE_MINUTES,
+    get_password_hash,
 )
-
 
 router = APIRouter()
 
@@ -24,13 +23,9 @@ router = APIRouter()
 # Регистрация
 @router.post("/register", response_model=UserOut)
 def register(user: UserCreate, db: Session = Depends(get_session)):
-    db_user = db.exec(
-        select(User).where(User.username == user.username)
-    ).first()
+    db_user = db.exec(select(User).where(User.username == user.username)).first()
     if db_user:
-        raise HTTPException(
-            status_code=400, detail="Username already registered"
-        )
+        raise HTTPException(status_code=400, detail="Username already registered")
     hashed_password = get_password_hash(user.password)
     db_user = User(username=user.username, hashed_password=hashed_password)
     db.add(db_user)
