@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 from sqlmodel import select
 
 from src.config.config import Config, load_config
-from src.db import User, get_session
+from src.db import get_session
+from src.models import User
 from src.utils.utils import ENV_FILE
 
 config: Config = load_config(ENV_FILE)

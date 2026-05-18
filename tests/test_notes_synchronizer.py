@@ -1,13 +1,15 @@
+import sys
+from pathlib import Path
 from unittest.mock import patch
-from NotesSynchronizer.notes_synchronizer import (
+
+import pytest
+
+from src.NotesSynchronizer.notes_synchronizer import (
     NotesSynchronizer,
     TimestampedNote,
     TimestampedSummary,
     VideoSummary,
 )
-import sys
-from pathlib import Path
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -80,12 +82,8 @@ class TestVideoSummary:
     def test_summary_dict(self):
         """Тест конвертации VideoSummary в словарь"""
         timestamped_summaries = [
-            TimestampedSummary(
-                time="01:30", summary="Summary 1", has_visual=True
-            ),
-            TimestampedSummary(
-                time="02:45", summary="Summary 2", has_visual=False
-            ),
+            TimestampedSummary(time="01:30", summary="Summary 1", has_visual=True),
+            TimestampedSummary(time="02:45", summary="Summary 2", has_visual=False),
         ]
 
         video_summary = VideoSummary(
@@ -116,9 +114,7 @@ class TestNotesSynchronizer:
     def synchronizer(self, mock_models):
         """Фикстура для NotesSynchronizer"""
         subtitles_mock, image_caption_mock, summarizer_mock = mock_models
-        return NotesSynchronizer(
-            subtitles_mock, image_caption_mock, summarizer_mock
-        )
+        return NotesSynchronizer(subtitles_mock, image_caption_mock, summarizer_mock)
 
     @patch("NotesSynchronizer.notes_synchronizer.extract_audio")
     @patch("NotesSynchronizer.notes_synchronizer.extract_frames")

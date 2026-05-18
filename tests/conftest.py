@@ -1,19 +1,18 @@
-import pytest
-from sqlmodel import SQLModel
 import sys
-from pathlib import Path
-
 from datetime import datetime
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import StaticPool
-from fastapi.testclient import TestClient
-
-from main import app
-from db import get_session
+from pathlib import Path
 from unittest.mock import MagicMock
-from tests.test_db import engine_test, get_test_session
 
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
+from sqlmodel import SQLModel
+
+from src.db import get_session
+from src.main import app
+from tests.test_db import engine_test, get_test_session
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT_DIR))
@@ -91,9 +90,7 @@ def engine():
 def db_session(engine) -> Session:
     connection = engine.connect()
     transaction = connection.begin()
-    session = sessionmaker(
-        autocommit=False, autoflush=False, bind=connection
-    )()
+    session = sessionmaker(autocommit=False, autoflush=False, bind=connection)()
 
     yield session
 

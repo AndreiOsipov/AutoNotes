@@ -2,8 +2,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, status
 
-from db import create_db_and_tables
 from src.api import Tags, all_router
+from src.db import create_db_and_tables
 from subtitles.subtitles import ImageCaption, Subtitles, TextSummarizer
 
 

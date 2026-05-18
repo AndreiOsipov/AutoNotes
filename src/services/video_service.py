@@ -1,6 +1,6 @@
 from sqlmodel import Session, select
 
-from src.db import VideoTranscription
+from src.models import VideoTranscription
 
 
 def get_user_stats(session: Session, user_id: int):

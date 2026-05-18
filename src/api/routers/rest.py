@@ -12,14 +12,13 @@ from fastapi import (
     Query,
     UploadFile,
 )
-from sqlmodel import asc, desc, join, select
+from sqlmodel import Session, asc, desc, join, select
 
-from src.db import (
+from src.db.database import SessionDep
+from src.models import (
     Review,
     ReviewCreate,
     ReviewResponse,
-    Session,
-    SessionDep,
     User,
     VideoTranscription,
     VideoTranscriptionPublic,
