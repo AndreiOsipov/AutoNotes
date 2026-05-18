@@ -1,60 +1,110 @@
-from datetime import timedelta
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
-from src.db import get_session
-from src.models import User
-from src.users.users import (
-    ACCESS_TOKEN_EXPIRE_MINUTES,
-    Token,
-    UserCreate,
-    UserOut,
-    authenticate_user,
-    create_access_token,
-    get_current_active_user,
-    get_password_hash,
+from src.api import DBManagerDep, get_current_user
+from src.core import get_settings
+from src.core.exceptions import (
+    AppError,
+    InvalidCredentialsError,
+    UserAlreadyExistsError,
 )
+from src.models import Users
+from src.schemas import TokenPair, UserCreate, UserOut
+from src.services import AuthService, UserService
+
+settings = get_settings()
 
 router = APIRouter()
 
 
-# Регистрация
-@router.post("/register", response_model=UserOut)
-def register(user: UserCreate, db: Session = Depends(get_session)):
-    db_user = db.exec(select(User).where(User.username == user.username)).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
-    hashed_password = get_password_hash(user.password)
-    db_user = User(username=user.username, hashed_password=hashed_password)
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-
-# Логин
-@router.post("/token", response_model=Token)
-def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_session),
-):
-    user = authenticate_user(db, form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+def _set_token_cookies(
+    response: Response, access_token: str, refresh_token: str
+) -> None:
+    response.set_cookie(
+        key=settings.ACCESS_COOKIE_NAME,
+        value=access_token,
+        httponly=False,
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRES_MINUTES * 60,
+        domain=settings.SESSION_COOKIE_DOMAIN,
+        path="/",
     )
-    return Token(access_token=access_token, token_type="bearer")
+    response.set_cookie(
+        key=settings.REFRESH_COOKIE_NAME,
+        value=refresh_token,
+        httponly=False,
+        secure=settings.SESSION_COOKIE_SECURE,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRES_MINUTES * 60,
+        domain=settings.SESSION_COOKIE_DOMAIN,
+        path="/",
+    )
 
 
-@router.get("/users/me", response_model=UserOut)
-def read_users_me(current_user: User = Depends(get_current_active_user)):
-    return current_user
+# Регистрация
+@router.post(
+    "/register",
+    status_code=status.HTTP_201_CREATED,
+    response_model=UserOut,
+    summary="Регистрация пользователя",
+    description="Тут пользователь регистрируется.",
+    name="auth_register",
+)
+async def register(data: UserCreate, db: DBManagerDep) -> UserOut:
+    service = UserService(db)
+    try:
+        return await service.register(data.name, data.email, data.password)
+    except UserAlreadyExistsError as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="") from err
+    except AppError as err:
+        detail = str(err) or ""
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=detail
+        ) from err
+
+
+# Аутентификация
+@router.post(
+    "/login",
+    status_code=status.HTTP_200_OK,
+    # response_model=TokenPair,
+    summary="Аутентификация пользователя",
+    description="Тут пользователь входит в сервис, будучи зарегистрированным.",
+    name="auth_login",
+)
+async def login(
+    data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    response: Response,
+    db: DBManagerDep,
+) -> TokenPair:
+    jwt_service = AuthService(db)
+    try:
+        access_token, refresh_token = await jwt_service.login(
+            data.username, data.password
+        )
+    except InvalidCredentialsError as err:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail=str(err)) from err
+    except AppError as err:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
+    _set_token_cookies(response, access_token, refresh_token)
+    return TokenPair(
+        access_token=access_token,
+        refresh_token=refresh_token,
+    )
+
+
+@router.get(
+    "/me",
+    summary="Профиль по JWT (access)",
+    status_code=status.HTTP_200_OK,
+    response_model=UserOut,
+    description="Вернуть данные по пользователю.",
+    name="auth_me",
+)
+async def me_jwt(
+    request: Request, user: Annotated[Users, Depends(get_current_user)]
+) -> UserOut:
+    return user

@@ -1,13 +1,14 @@
-from .review import Review, ReviewCreate, ReviewResponse
-from .users import User, UserOut
-from .video import VideoTranscription, VideoTranscriptionPublic
+from .reviews import Review, ReviewCreate, ReviewResponse
+from .tokens import RefreshToken
+from .users import Users
+from .videos import VideoTranscription, VideoTranscriptionPublic
 
 __all__ = [
     "ReviewCreate",
     "Review",
     "ReviewResponse",
-    "User",
-    "UserOut",
+    "Users",
     "VideoTranscription",
     "VideoTranscriptionPublic",
+    "RefreshToken",
 ]

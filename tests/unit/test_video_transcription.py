@@ -4,7 +4,7 @@ import pytest
 from sqlmodel import Session, SQLModel, create_engine
 
 from src.models import VideoTranscription
-from src.services.video_service import get_user_stats
+from src.services import get_user_stats
 
 
 @pytest.fixture

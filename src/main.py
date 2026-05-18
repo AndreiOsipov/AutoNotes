@@ -2,9 +2,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, status
 
-from src.api import Tags, all_router
+from src.api import Tags, all_router, tags_metadata
+from src.core import get_settings
 from src.db import create_db_and_tables
-from subtitles.subtitles import ImageCaption, Subtitles, TextSummarizer
+from src.subtitles.subtitles import ImageCaption, Subtitles, TextSummarizer
+
+settings = get_settings()
 
 
 @asynccontextmanager
@@ -16,7 +19,13 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    description=settings.PROJECT_DESCRIPTION,
+    version=settings.PROJECT_VERSION,
+    openapi_tags=tags_metadata,
+    lifespan=lifespan,
+)
 
 app.include_router(all_router)
 

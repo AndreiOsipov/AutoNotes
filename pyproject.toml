@@ -8,6 +8,7 @@ dependencies = [
     "alembic>=1.18.4",
     "fastapi>=0.136.1",
     "passlib[argon2]>=1.7.4",
+    "pydantic-settings>=2.14.1",
     "pyjwt[crypto]>=2.12.1",
     "sqlmodel>=0.0.38",
 ]

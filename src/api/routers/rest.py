@@ -14,19 +14,19 @@ from fastapi import (
 )
 from sqlmodel import Session, asc, desc, join, select
 
+from src.api import get_current_active_user
 from src.db.database import SessionDep
 from src.models import (
     Review,
     ReviewCreate,
     ReviewResponse,
-    User,
+    Users,
     VideoTranscription,
     VideoTranscriptionPublic,
 )
 from src.NotesSynchronizer.notes_synchronizer import NotesSynchronizer
-from src.services.video_service import get_user_stats
+from src.services import get_user_stats
 from src.subtitles.subtitles import ImageCaption, Subtitles, TextSummarizer
-from src.users.users import get_current_active_user
 from src.utils.utils import SUMMARY_POSTFIX, TEXT_DIR, VIDEO_DIR
 
 router = APIRouter()
@@ -62,7 +62,7 @@ def process_video(
     video: UploadFile,
     session: SessionDep,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Users = Depends(get_current_active_user),
 ):
     video_transcription = VideoTranscription(
         transcription="", transcription_ready=False, user_id=current_user.id
@@ -87,7 +87,7 @@ def process_video(
 def download_transcription(
     transcription_id: int,
     session: SessionDep,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Users = Depends(get_current_active_user),
 ):
     transcription = session.get(VideoTranscription, transcription_id)
     if not transcription:
@@ -101,7 +101,7 @@ def download_transcription(
 @router.get("/summary/{transcription_id}")
 def download_summary(
     transcription_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Users = Depends(get_current_active_user),
 ):
     video_summary_file = str(TEXT_DIR / f"{transcription_id}_{SUMMARY_POSTFIX}")
     if not (Path(video_summary_file).exists()):
@@ -116,7 +116,7 @@ def download_summary(
 
 @router.get("/users/stats")
 def read_stats(
-    session: SessionDep, current_user: User = Depends(get_current_active_user)
+    session: SessionDep, current_user: Users = Depends(get_current_active_user)
 ):
     return get_user_stats(session, current_user.id)
 
@@ -126,7 +126,7 @@ def read_stats(
 def create_review(
     review: ReviewCreate,
     session: SessionDep,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Users = Depends(get_current_active_user),
 ):
     review = Review(
         username=current_user.username,
@@ -151,13 +151,13 @@ def get_service_reviews(
     statement = (
         select(
             Review.id,
-            User.username,
+            Users.name,
             Review.transcription_id,
             Review.rating,
             Review.comment,
             Review.created_dt_tm,
         )
-        .select_from(join(Review, User, Review.user_id == User.id))
+        .select_from(join(Review, Users, Review.user_id == Users.id))
         .where(Review.transcription_id.is_(None))
     )
     if sort_by == "newest":
@@ -184,13 +184,13 @@ def get_transcription_reviews(
     statement = (
         select(
             Review.id,
-            User.username,
+            Users.name,
             Review.transcription_id,
             Review.rating,
             Review.comment,
             Review.created_dt_tm,
         )
-        .select_from(join(Review, User, Review.user_id == User.id))
+        .select_from(join(Review, Users, Review.user_id == Users.id))
         .where(Review.transcription_id == transcription_id)
     )
     if sort_by == "newest":
