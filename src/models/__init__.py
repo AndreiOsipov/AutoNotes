@@ -1,6 +1,5 @@
 from .reviews import Review, ReviewCreate, ReviewResponse
-from .tokens import RefreshToken
-from .users import Users
+from .users import RefreshToken, Users
 from .videos import VideoTranscription, VideoTranscriptionPublic
 
 __all__ = [

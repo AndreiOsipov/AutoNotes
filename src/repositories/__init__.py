@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models import RefreshToken, User
+from src.models import RefreshToken, Users
 
 
 class UserRepository:
@@ -13,17 +13,17 @@ class UserRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_user_name(self, name: str) -> Optional[User]:
-        return await self.session.scalar(select(User).where(User.name == name))
+    async def get_user_name(self, name: str) -> Optional[Users]:
+        return await self.session.scalar(select(Users).where(Users.name == name))
 
-    async def get_user_email(self, email: str) -> Optional[User]:
-        return await self.session.scalar(select(User).where(User.email == email))
+    async def get_user_email(self, email: str) -> Optional[Users]:
+        return await self.session.scalar(select(Users).where(Users.email == email))
 
-    async def get_user_id(self, user_id: int) -> Optional[User]:
-        return await self.session.get(User, user_id)
+    async def get_user_id(self, user_id: int) -> Optional[Users]:
+        return await self.session.get(Users, user_id)
 
-    async def create_user(self, name: str, email: str, password_hash: str) -> User:
-        user = User(name=name, email=email, password_hash=password_hash)
+    async def create_user(self, name: str, email: str, password_hash: str) -> Users:
+        user = Users(name=name, email=email, password_hash=password_hash)
         self.session.add(user)
         await self.session.flush()
         return user

@@ -70,7 +70,7 @@ async def register(data: UserCreate, db: DBManagerDep) -> UserOut:
 @router.post(
     "/login",
     status_code=status.HTTP_200_OK,
-    # response_model=TokenPair,
+    response_model=TokenPair,
     summary="Аутентификация пользователя",
     description="Тут пользователь входит в сервис, будучи зарегистрированным.",
     name="auth_login",
