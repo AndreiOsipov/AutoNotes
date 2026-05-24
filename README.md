@@ -1,20 +1,26 @@
 # AutoNotes
 AutoNotes — нейросервис для конспектирования видео. 
 
-## 🔍 О проекте
+## Содержание
+- [О проекте](#о-проекте)
+- [Основные возможности](#основные-возможности)
+- [Быстрый старт](#быстрый-старт)
+- [Структура проекта](#структура-проекта)
+
+## О проекте
 AutoNotes превращает видеоролики (лекции) в структурированные конспекты.
 
 Сервис использует современные алгоритмы распознавания речи, текста на изображении и обработки естественного языка, чтобы выделить главное и сократить время на просмотр.
 
 AutoNotes идеально заточен под студентов, исследователей, преподавателей и всех, кто учится или работает с видеоуроками, лекциями и интервью.
 
-## 💪 Основные возможности
+## Основные возможности
  - Автоматическое распознавание речи и составление текста.
  - Генерация краткого конспекта и тезисов по видео.
  - Таймкоды с переходом к нужному фрагменту.
  - Возможность экспорта в PDF или Markdown.
 
-## 🚀 Быстрый старт
+## Быстрый старт
 1. Клонирование репозитория
 ```bash   
 git clone [https://github.com/AndreiOsipov/AutoNotes.git](https://github.com/AndreiOsipov/AutoNotes.git)
@@ -36,42 +42,101 @@ pip install -r requirements.txt
 ```bash
 PYTHONPATH=. pytest
 ```
-## 🩻 Структура проекта
+
+## Структура проекта
 ```
-📁 AutoNotes/
-├── 📁 .github/
-│   └─── 📁 workflows/
-│        └─── ci.yml
-├── 📁 NotesSynchronizer/
-│   └─── notes_synchronizer.py   
-├── 📁 config/
-│   └─── config.py
-├── 📁 services/
-│   └─── video_service.py
-├── 📁 subtitles/
-│   ├─── 📁 dir_audio/
-│   ├─── 📁 dir_txt/
-│   ├─── 📁 dit_video/
-│   ├─── 📁 parsed_images/
-│   └─── subtitles.py
-├── 📁 tests/
-│   ├─── 📁 unit/
-│   │    ├─── test_users_router.py
-│   │    └─── test_video_transcription.py
-│   ├─── conftest.py
-│   ├─── test_db.py
-│   └─── test_notes_synchronizer.py
-├── 📁 users/
-│   ├─── users_router.py
-│   └─── users.py
-├── 📁 utils/
-│   └─── utils.py
-├── .env
+AutoNotes/
+│ 
+├── .github/workflows/                # CI/CD конфигурации GitHub Actions
+│   └── ci.yml
+│ 
+├── certs/                            # SSL/TLS сертификаты и ключи
+│
+├── src/                              # Основной исходный код приложения
+│   │
+│   ├── api/                          # Слой API (маршруты, зависимости, конфигурация FastAPI)
+│   │   │
+│   │   ├── routers/                  # API роутеры/эндпоинты
+│   │   │   ├── __init__.py
+│   │   │   ├── auth.py/
+│   │   │   └── rest.py
+│   │   │
+│   │   ├── __init__.py
+│   │   ├── constants.py
+│   │   ├── dependencies.py
+│   │   ├── router.py
+│   │   └── tags.py
+│   │
+│   ├── core/                         # Ядро приложения и базовая логика
+│   │   ├── __init__.py
+│   │   ├── exceptions.py
+│   │   ├── security.py
+│   │   ├── settings.py
+│   │   └── tokens.py
+│   │
+│   ├── db/                           # Работа с базой данных
+│   │   ├── __init__.py
+│   │   ├── database.py
+│   │   └── db_manager.py
+│   │
+│   ├── models/                       # ORM модели базы данных
+│   │   ├── __init__.py
+│   │   ├── reviews.py
+│   │   ├── users.py
+│   │   └── videos.py
+│   │  
+│   ├── NotesSynchronizer/            # Модуль синхронизации конспекта
+│   │   └── notes_synchronizer.py
+│   │
+│   ├── repositories/                 # Слой доступа к данным (Repository pattern)
+│   │   ├── __init__.py
+│   │   └── repositories.py
+│   │
+│   ├── schemas/                      # Pydantic-схемы для валидации данных
+│   │   ├── __init__.py
+│   │   ├── config.py
+│   │   └── user.py
+│   │ 
+│   ├── services/                     # Бизнес-логика приложения
+│   │   ├── __init__.py
+│   │   ├── services.py
+│   │   └── video_service.py
+│   │ 
+│   ├── subtitles/                    # Работа с субтитрами, аудио и текстом
+│   │   ├── dir_audio/
+│   │   ├── dir_text/
+│   │   ├── dir_txt/
+│   │   ├── dit_video/
+│   │   ├── parsed_images/
+│   │   ├── __init__.py
+│   │   └── subtitles.py
+│   │ 
+│   ├── utils/                        # Вспомогательные утилиты и хелперы
+│   │   ├── __init__.py
+│   │   └── utils.py
+│   │ 
+│   ├── __init__.py
+│   └── main.py
+│
+├── tests/                            # Тесты проекта
+│   │ 
+│   ├── unit/                         # Unit-тесты
+│   │   ├── test_users_router.py
+│   │   └── test_video_transcription.py
+│   │ 
+│   ├── __init__.py
+│   ├── conftest.py
+│   ├── test_db.py
+│   └── test_notes_synchronizer.py
+│ 
 ├── .env.example
 ├── .gitignore
-├── db.py
-├── main.py
-└── requirements.txt
+├── .python-version
+├── LICENSE
+├── pyproject.toml
+├── README.md
+├── requirements.txt
+└── uv.lock
 ```
  - 📁 .github/ 📁 workflows/ — конфигурации GitHub Actions;
  - ci.yml — конфигурация continuous integration;

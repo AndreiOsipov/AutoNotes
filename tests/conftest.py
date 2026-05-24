@@ -1,37 +1,129 @@
-import pytest
-from sqlmodel import SQLModel
-import sys
-from pathlib import Path
-
 from datetime import datetime
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import StaticPool
-from fastapi.testclient import TestClient
-
-from main import app
-from db import get_session
+from pathlib import Path
+from typing import AsyncGenerator
 from unittest.mock import MagicMock
-from tests.test_db import engine_test, get_test_session
+
+import pytest
+from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlmodel import SQLModel
+
+from src.db import get_session
+from src.main import app
+
+BASE_DIR = Path(__file__).resolve().parent
+TEST_DB_FILE = BASE_DIR / "test.db"
+TEST_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_FILE}"
 
 
-ROOT_DIR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT_DIR))
-app.dependency_overrides[get_session] = get_test_session
+@pytest.fixture
+def fastapi_app():
+    return app
 
 
-@pytest.fixture(scope="session", autouse=True)
-def create_test_db():
+@pytest.fixture(scope="session")
+async def engine():
+    engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+
+    yield engine
+
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.drop_all)
+
+    await engine.dispose()
+
+
+@pytest.fixture
+async def db_session(engine):
     """
-    Создание тестовой базы данных
+    Обеспечиваем изоляцию тестов через транзакции.
     """
-    SQLModel.metadata.drop_all(bind=engine_test)
-    SQLModel.metadata.create_all(bind=engine_test)
-    yield
-    SQLModel.metadata.drop_all(bind=engine_test)
+    connection = await engine.connect()
+    # Начинаем транзакцию
+    transaction = await connection.begin()
+
+    session_factory = async_sessionmaker(
+        bind=connection,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    async with session_factory() as session:
+        yield session
+
+    # Откатываем все изменения, чтобы база осталась чистой для следующего теста
+    await transaction.rollback()
+    await connection.close()
 
 
-TEST_SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+@pytest.fixture(scope="function")
+async def async_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    """
+    Асинхронный HTTP-клиент, в котором реальная база данных
+    подменена на тестовую.
+    """
+
+    # Функция для переопределения зависимости FastAPI
+    def override_get_async_session():
+        yield db_session
+
+    app.dependency_overrides[get_session] = override_get_async_session
+
+    # Используем ASGITransport для обхода необходимости поднимать реальный сервер
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        yield client
+
+    # Очищаем переопределения после теста
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def valid_user_data() -> dict:
+    """Фикстура с валидным payload для регистрации."""
+    return {
+        "name": "test_user",
+        "email": "user@mail.com",
+        "password": "secure_password_123",
+        "confirm_password": "secure_password_123",
+    }
+
+
+@pytest.fixture
+def another_user_data() -> dict:
+    return {
+        "name": "another_user",
+        "email": "auser@mail.com",
+        "password": "super_secure_456",
+        "confirm_password": "super_secure_456",
+    }
+
+
+# Всё что было до меня
+
+# ROOT_DIR = Path(__file__).resolve().parents[1]
+# sys.path.insert(0, str(ROOT_DIR))
+# app.dependency_overrides[get_session] = get_test_session
+
+
+# @pytest.fixture(scope="session", autouse=True)
+# def create_test_db():
+#    """
+#    Создание тестовой базы данных
+#    """
+#    SQLModel.metadata.drop_all(bind=engine_test)
+#    SQLModel.metadata.create_all(bind=engine_test)
+#    yield
+#    SQLModel.metadata.drop_all(bind=engine_test)
 
 
 @pytest.fixture
@@ -77,29 +169,27 @@ def mock_pipeline_result():
     return {"text": "Привет мир"}
 
 
-@pytest.fixture(scope="session")
+"""@pytest.fixture(scope="session")
 def engine():
     engine = create_engine(
         TEST_SQLALCHEMY_DATABASE_URL,
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    yield engine
+    yield engine"""
 
 
-@pytest.fixture(scope="function")
+"""@pytest.fixture(scope="function")
 def db_session(engine) -> Session:
     connection = engine.connect()
     transaction = connection.begin()
-    session = sessionmaker(
-        autocommit=False, autoflush=False, bind=connection
-    )()
+    session = sessionmaker(autocommit=False, autoflush=False, bind=connection)()
 
     yield session
 
     session.close()
     transaction.rollback()
-    connection.close()
+    connection.close()"""
 
 
 @pytest.fixture(scope="function")

@@ -1,56 +1,35 @@
-from contextlib import asynccontextmanager
-import shutil
 import json
+import shutil
+from datetime import UTC, datetime
 from pathlib import Path
-from users.users_router import router
-
-from fastapi import (
-    FastAPI,
-    UploadFile,
-    HTTPException,
-    BackgroundTasks,
-    Depends,
-    Query,
-)
-from datetime import datetime, UTC
-from db import (
-    User,
-    SessionDep,
-    VideoTranscriptionPublic,
-    VideoTranscription,
-    ReviewCreate,
-    ReviewResponse,
-    Session,
-    create_db_and_tables,
-    Review,
-)
-
-
-from utils.utils import VIDEO_DIR, TEXT_DIR, SUMMARY_POSTFIX
-from subtitles.subtitles import Subtitles, ImageCaption, TextSummarizer
-from NotesSynchronizer.notes_synchronizer import NotesSynchronizer
-from sqlmodel import select, join, desc, asc
-
-
-from users.users import get_current_active_user
-from services.video_service import get_user_stats
-
-
 from typing import List
 
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    UploadFile,
+)
+from sqlmodel import Session, asc, desc, join, select
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    create_db_and_tables()
-    Subtitles()
-    ImageCaption()
-    TextSummarizer()
-    yield
+from src.api import get_current_active_user
+from src.db.database import SessionDep
+from src.models import (
+    Review,
+    ReviewCreate,
+    ReviewResponse,
+    Users,
+    VideoTranscription,
+    VideoTranscriptionPublic,
+)
+from src.NotesSynchronizer.notes_synchronizer import NotesSynchronizer
+from src.services import get_user_stats
+from src.subtitles.subtitles import ImageCaption, Subtitles, TextSummarizer
+from src.utils.utils import SUMMARY_POSTFIX, TEXT_DIR, VIDEO_DIR
 
-
-app = FastAPI(lifespan=lifespan)
-
-app.include_router(router)
+router = APIRouter()
 
 
 def write_subtitles(video_path: str, video_id, session: Session):
@@ -78,17 +57,12 @@ def write_subtitles(video_path: str, video_id, session: Session):
     session.commit()
 
 
-@app.get("/")
-def root():
-    return {"message": "Hello World"}
-
-
-@app.post("/process/", response_model=VideoTranscriptionPublic)
+@router.post("/process/", response_model=VideoTranscriptionPublic)
 def process_video(
     video: UploadFile,
     session: SessionDep,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Users = Depends(get_current_active_user),
 ):
     video_transcription = VideoTranscription(
         transcription="", transcription_ready=False, user_id=current_user.id
@@ -106,14 +80,14 @@ def process_video(
     return video_transcription
 
 
-@app.get(
+@router.get(
     "/transcription/{transcription_id}",
     response_model=VideoTranscriptionPublic,
 )
 def download_transcription(
     transcription_id: int,
     session: SessionDep,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Users = Depends(get_current_active_user),
 ):
     transcription = session.get(VideoTranscription, transcription_id)
     if not transcription:
@@ -124,14 +98,12 @@ def download_transcription(
     return transcription
 
 
-@app.get("/summary/{transcription_id}")
+@router.get("/summary/{transcription_id}")
 def download_summary(
     transcription_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Users = Depends(get_current_active_user),
 ):
-    video_summary_file = str(
-        TEXT_DIR / f"{transcription_id}_{SUMMARY_POSTFIX}"
-    )
+    video_summary_file = str(TEXT_DIR / f"{transcription_id}_{SUMMARY_POSTFIX}")
     if not (Path(video_summary_file).exists()):
         raise HTTPException(
             status_code=404,
@@ -142,19 +114,19 @@ def download_summary(
         return json.load(f)
 
 
-@app.get("/users/stats")
+@router.get("/users/stats")
 def read_stats(
-    session: SessionDep, current_user: User = Depends(get_current_active_user)
+    session: SessionDep, current_user: Users = Depends(get_current_active_user)
 ):
     return get_user_stats(session, current_user.id)
 
 
 # Создание отзыва
-@app.post("/reviews/", response_model=ReviewResponse)
+@router.post("/reviews/", response_model=ReviewResponse)
 def create_review(
     review: ReviewCreate,
     session: SessionDep,
-    current_user: User = Depends(get_current_active_user),
+    current_user: Users = Depends(get_current_active_user),
 ):
     review = Review(
         username=current_user.username,
@@ -170,7 +142,7 @@ def create_review(
 
 
 # Запрос отзывов без transcription_id (отзывы на сервис)
-@app.get("/reviews", response_model=List[ReviewResponse])
+@router.get("/reviews", response_model=List[ReviewResponse])
 def get_service_reviews(
     session: SessionDep,
     limit: int = Query(10, ge=1, le=100),
@@ -179,13 +151,13 @@ def get_service_reviews(
     statement = (
         select(
             Review.id,
-            User.username,
+            Users.name,
             Review.transcription_id,
             Review.rating,
             Review.comment,
             Review.created_dt_tm,
         )
-        .select_from(join(Review, User, Review.user_id == User.id))
+        .select_from(join(Review, Users, Review.user_id == Users.id))
         .where(Review.transcription_id.is_(None))
     )
     if sort_by == "newest":
@@ -193,20 +165,16 @@ def get_service_reviews(
     elif sort_by == "oldest":
         statement = statement.order_by(asc(Review.created_dt_tm))
     elif sort_by == "best":
-        statement = statement.order_by(
-            desc(Review.rating), desc(Review.created_dt_tm)
-        )
+        statement = statement.order_by(desc(Review.rating), desc(Review.created_dt_tm))
     elif sort_by == "worst":
-        statement = statement.order_by(
-            asc(Review.rating), desc(Review.created_dt_tm)
-        )
+        statement = statement.order_by(asc(Review.rating), desc(Review.created_dt_tm))
 
     statement = statement.limit(limit)
     return session.exec(statement).all()
 
 
 # Запрос отзывов на transcription
-@app.get("/reviews/{transcription_id}", response_model=List[ReviewResponse])
+@router.get("/reviews/{transcription_id}", response_model=List[ReviewResponse])
 def get_transcription_reviews(
     session: SessionDep,
     transcription_id: int,
@@ -216,13 +184,13 @@ def get_transcription_reviews(
     statement = (
         select(
             Review.id,
-            User.username,
+            Users.name,
             Review.transcription_id,
             Review.rating,
             Review.comment,
             Review.created_dt_tm,
         )
-        .select_from(join(Review, User, Review.user_id == User.id))
+        .select_from(join(Review, Users, Review.user_id == Users.id))
         .where(Review.transcription_id == transcription_id)
     )
     if sort_by == "newest":
@@ -230,13 +198,9 @@ def get_transcription_reviews(
     elif sort_by == "oldest":
         statement = statement.order_by(asc(Review.created_dt_tm))
     elif sort_by == "best":
-        statement = statement.order_by(
-            desc(Review.rating), desc(Review.created_dt_tm)
-        )
+        statement = statement.order_by(desc(Review.rating), desc(Review.created_dt_tm))
     elif sort_by == "worst":
-        statement = statement.order_by(
-            asc(Review.rating), desc(Review.created_dt_tm)
-        )
+        statement = statement.order_by(asc(Review.rating), desc(Review.created_dt_tm))
 
     statement = statement.limit(limit)
     return session.exec(statement).all()

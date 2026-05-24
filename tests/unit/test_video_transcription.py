@@ -1,8 +1,10 @@
-import pytest
 from datetime import UTC, datetime, timedelta
+
+import pytest
 from sqlmodel import Session, SQLModel, create_engine
-from db import VideoTranscription
-from services.video_service import get_user_stats
+
+from src.models import VideoTranscription
+from src.services import get_user_stats
 
 
 @pytest.fixture
