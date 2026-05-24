@@ -22,7 +22,7 @@ class ReviewResponse(ReviewCreate):
 # Отзывы
 class Review(ReviewResponse, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id", index=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
 
     created_dt_tm: datetime = Field(
         default_factory=lambda: datetime.now(UTC).replace(tzinfo=None)

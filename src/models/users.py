@@ -6,8 +6,6 @@ from sqlmodel import Field, Relationship, SQLModel
 
 
 class Users(SQLModel, table=True):
-    __tablename__ = "users"
-
     id: uuid.UUID = Field(
         default_factory=uuid.uuid4,
         primary_key=True,
@@ -41,8 +39,6 @@ class Users(SQLModel, table=True):
 
 
 class RefreshToken(SQLModel, table=True):
-    __tablename__ = "refresh_tokens"
-
     id: uuid.UUID = Field(
         default_factory=lambda: str(uuid.uuid4()),
         primary_key=True,

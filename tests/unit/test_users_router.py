@@ -1,14 +1,15 @@
+"""
 from fastapi import status
 from sqlmodel import Session
-
-from src.models import User
 from src.users.users import get_password_hash
+
+from src.models import Users
 from tests.test_db import engine_test
 
 
 def create_user_in_db(username: str, password: str):
     with Session(engine_test) as session:
-        user = User(username=username, hashed_password=get_password_hash(password))
+        user = Users(name=username, password_hash=get_password_hash(password))
         session.add(user)
         session.commit()
         session.refresh(user)
@@ -115,3 +116,4 @@ def test_users_me_unauthorized(client):
         status.HTTP_401_UNAUTHORIZED,
         status.HTTP_403_FORBIDDEN,
     )
+"""

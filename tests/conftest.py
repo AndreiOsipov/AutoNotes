@@ -1,18 +1,111 @@
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import AsyncGenerator
 from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from httpx import ASGITransport, AsyncClient
+
+# from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+
+# from sqlalchemy.orm import Session, sessionmaker
+# from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 
 from src.db import get_session
 from src.main import app
 from tests.test_db import engine_test, get_test_session
+
+TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
+
+@pytest.fixture
+def fastapi_app():
+    return app
+
+
+@pytest.fixture(scope="session")
+async def engine():
+    """Асинхронный движок зависит от фикстуры миграций."""
+    engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+
+    yield engine
+
+    await engine.dispose()
+
+
+# @pytest.fixture(autouse=True)
+# async def clean_db(engine):
+#    async with engine.begin() as conn:
+#        for table in reversed(Base.metadata.sorted_tables):
+#            await conn.execute(table.delete())
+
+
+@pytest.fixture
+async def db_session(engine):
+    session_factory = async_sessionmaker(
+        bind=engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    async with session_factory() as session:
+        yield session
+        await session.rollback()
+
+
+@pytest.fixture(scope="function")
+async def async_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    """
+    Асинхронный HTTP-клиент, в котором реальная база данных
+    подменена на тестовую.
+    """
+
+    # Функция для переопределения зависимости FastAPI
+    def override_get_async_session():
+        yield db_session
+
+    app.dependency_overrides[get_session] = override_get_async_session
+
+    # Используем ASGITransport для обхода необходимости поднимать реальный сервер
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://testserver"
+    ) as client:
+        yield client
+
+    # Очищаем переопределения после теста
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def valid_user_data() -> dict:
+    """Фикстура с валидным payload для регистрации."""
+    return {
+        "name": "test_user",
+        "email": "user@mail.com",
+        "password": "secure_password_123",
+        "confirm_password": "secure_password_123",
+    }
+
+
+@pytest.fixture
+def another_user_data() -> dict:
+    return {
+        "name": "another_user",
+        "email": "auser@mail.com",
+        "password": "super_secure_456",
+        "confirm_password": "super_secure_456",
+    }
+
+
+# Всё что было до меня
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT_DIR))
@@ -28,9 +121,6 @@ def create_test_db():
     SQLModel.metadata.create_all(bind=engine_test)
     yield
     SQLModel.metadata.drop_all(bind=engine_test)
-
-
-TEST_SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
 
 @pytest.fixture
@@ -76,17 +166,17 @@ def mock_pipeline_result():
     return {"text": "Привет мир"}
 
 
-@pytest.fixture(scope="session")
+"""@pytest.fixture(scope="session")
 def engine():
     engine = create_engine(
         TEST_SQLALCHEMY_DATABASE_URL,
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    yield engine
+    yield engine"""
 
 
-@pytest.fixture(scope="function")
+"""@pytest.fixture(scope="function")
 def db_session(engine) -> Session:
     connection = engine.connect()
     transaction = connection.begin()
@@ -96,7 +186,7 @@ def db_session(engine) -> Session:
 
     session.close()
     transaction.rollback()
-    connection.close()
+    connection.close()"""
 
 
 @pytest.fixture(scope="function")

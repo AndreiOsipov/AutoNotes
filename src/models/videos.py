@@ -13,7 +13,7 @@ class VideoTranscriptionPublic(SQLModel):
 class VideoTranscription(VideoTranscriptionPublic, table=True):
     # Поля только для базы (с ID и временем)
     id: int | None = Field(default=None, primary_key=True)
-    user_id: int | None = Field(default=None, foreign_key="user.id")
+    user_id: int | None = Field(default=None, foreign_key="users.id")
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     completed_at: datetime | None = None

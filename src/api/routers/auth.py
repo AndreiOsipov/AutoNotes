@@ -56,7 +56,9 @@ def _set_token_cookies(
 async def register(data: UserCreate, db: DBManagerDep) -> UserOut:
     service = UserService(db)
     try:
-        return await service.register(data.name, data.email, data.password)
+        return UserOut.model_validate(
+            await service.register(data.name, data.email, data.password)
+        )
     except UserAlreadyExistsError as err:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="") from err
     except AppError as err:
@@ -107,4 +109,4 @@ async def login(
 async def me_jwt(
     request: Request, user: Annotated[Users, Depends(get_current_user)]
 ) -> UserOut:
-    return user
+    return UserOut.model_validate(user)
