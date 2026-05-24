@@ -1,4 +1,3 @@
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import AsyncGenerator
@@ -7,23 +6,19 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
-
-# from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
-
-# from sqlalchemy.orm import Session, sessionmaker
-# from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 
 from src.db import get_session
 from src.main import app
-from tests.test_db import engine_test, get_test_session
 
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+BASE_DIR = Path(__file__).resolve().parent
+TEST_DB_FILE = BASE_DIR / "test.db"
+TEST_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_FILE}"
 
 
 @pytest.fixture
@@ -33,32 +28,40 @@ def fastapi_app():
 
 @pytest.fixture(scope="session")
 async def engine():
-    """Асинхронный движок зависит от фикстуры миграций."""
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+
     yield engine
+
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.drop_all)
 
     await engine.dispose()
 
 
-# @pytest.fixture(autouse=True)
-# async def clean_db(engine):
-#    async with engine.begin() as conn:
-#        for table in reversed(Base.metadata.sorted_tables):
-#            await conn.execute(table.delete())
-
-
 @pytest.fixture
 async def db_session(engine):
+    """
+    Обеспечиваем изоляцию тестов через транзакции.
+    """
+    connection = await engine.connect()
+    # Начинаем транзакцию
+    transaction = await connection.begin()
+
     session_factory = async_sessionmaker(
-        bind=engine,
+        bind=connection,
         class_=AsyncSession,
         expire_on_commit=False,
     )
 
     async with session_factory() as session:
         yield session
-        await session.rollback()
+
+    # Откатываем все изменения, чтобы база осталась чистой для следующего теста
+    await transaction.rollback()
+    await connection.close()
 
 
 @pytest.fixture(scope="function")
@@ -107,20 +110,20 @@ def another_user_data() -> dict:
 
 # Всё что было до меня
 
-ROOT_DIR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT_DIR))
-app.dependency_overrides[get_session] = get_test_session
+# ROOT_DIR = Path(__file__).resolve().parents[1]
+# sys.path.insert(0, str(ROOT_DIR))
+# app.dependency_overrides[get_session] = get_test_session
 
 
-@pytest.fixture(scope="session", autouse=True)
-def create_test_db():
-    """
-    Создание тестовой базы данных
-    """
-    SQLModel.metadata.drop_all(bind=engine_test)
-    SQLModel.metadata.create_all(bind=engine_test)
-    yield
-    SQLModel.metadata.drop_all(bind=engine_test)
+# @pytest.fixture(scope="session", autouse=True)
+# def create_test_db():
+#    """
+#    Создание тестовой базы данных
+#    """
+#    SQLModel.metadata.drop_all(bind=engine_test)
+#    SQLModel.metadata.create_all(bind=engine_test)
+#    yield
+#    SQLModel.metadata.drop_all(bind=engine_test)
 
 
 @pytest.fixture

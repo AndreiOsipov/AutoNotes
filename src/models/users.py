@@ -43,7 +43,7 @@ class RefreshToken(SQLModel, table=True):
         default_factory=lambda: str(uuid.uuid4()),
         primary_key=True,
     )
-    user_id: int = Field(
+    user_id: uuid.UUID = Field(
         foreign_key="users.id",
         index=True,
     )
