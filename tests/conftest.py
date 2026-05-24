@@ -4,6 +4,8 @@ from typing import AsyncGenerator
 from unittest.mock import MagicMock
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import (
@@ -16,9 +18,9 @@ from sqlmodel import SQLModel
 from src.db import get_session
 from src.main import app
 
-BASE_DIR = Path(__file__).resolve().parent
-TEST_DB_FILE = BASE_DIR / "test.db"
-TEST_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_FILE}"
+TEST_DB_PATH = Path(__file__).resolve().parent / "test.db"
+TEST_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
+ALEMBIC_DATABASE_URL = f"sqlite:///{TEST_DB_PATH}"
 
 
 @pytest.fixture
@@ -27,41 +29,51 @@ def fastapi_app():
 
 
 @pytest.fixture(scope="session")
-async def engine():
+async def engine(apply_migrations):
+    """Асинхронный движок зависит от фикстуры миграций."""
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
-
     yield engine
-
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.drop_all)
 
     await engine.dispose()
 
 
+@pytest.fixture(scope="session")
+def apply_migrations():
+    """Фикстура для применения миграций Alembic к тестовой БД."""
+    # Указываем путь к alembic.ini (убедись, что путь корректный относительно запуска pytest)
+    alembic_cfg = Config("alembic.ini")
+
+    # Переопределяем URL БД в конфиге Alembic, чтобы он смотрел в тестовую базу, а не в основную
+    alembic_cfg.set_main_option("sqlalchemy.url", "sqlite:///tests/test.db")
+
+    # Накатываем миграции до актуального состояния
+    command.upgrade(alembic_cfg, "head")
+
+    yield
+
+    # После завершения всех тестов откатываем БД в ноль
+    command.downgrade(alembic_cfg, "base")
+
+
+@pytest.fixture(autouse=True)
+async def clean_db(apply_migrations, engine):
+    async with engine.begin() as conn:
+        for table in reversed(SQLModel.metadata.sorted_tables):
+            await conn.execute(table.delete())
+
+
 @pytest.fixture
 async def db_session(engine):
-    """
-    Обеспечиваем изоляцию тестов через транзакции.
-    """
-    connection = await engine.connect()
-    # Начинаем транзакцию
-    transaction = await connection.begin()
-
     session_factory = async_sessionmaker(
-        bind=connection,
+        bind=engine,
         class_=AsyncSession,
         expire_on_commit=False,
     )
 
     async with session_factory() as session:
         yield session
-
-    # Откатываем все изменения, чтобы база осталась чистой для следующего теста
-    await transaction.rollback()
-    await connection.close()
+        await session.rollback()
 
 
 @pytest.fixture(scope="function")
@@ -108,22 +120,7 @@ def another_user_data() -> dict:
     }
 
 
-# Всё что было до меня
-
-# ROOT_DIR = Path(__file__).resolve().parents[1]
-# sys.path.insert(0, str(ROOT_DIR))
-# app.dependency_overrides[get_session] = get_test_session
-
-
-# @pytest.fixture(scope="session", autouse=True)
-# def create_test_db():
-#    """
-#    Создание тестовой базы данных
-#    """
-#    SQLModel.metadata.drop_all(bind=engine_test)
-#    SQLModel.metadata.create_all(bind=engine_test)
-#    yield
-#    SQLModel.metadata.drop_all(bind=engine_test)
+# 1sem
 
 
 @pytest.fixture
@@ -167,29 +164,6 @@ def mock_video_no_audio():
 def mock_pipeline_result():
     """Мок результата транскрипции"""
     return {"text": "Привет мир"}
-
-
-"""@pytest.fixture(scope="session")
-def engine():
-    engine = create_engine(
-        TEST_SQLALCHEMY_DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    yield engine"""
-
-
-"""@pytest.fixture(scope="function")
-def db_session(engine) -> Session:
-    connection = engine.connect()
-    transaction = connection.begin()
-    session = sessionmaker(autocommit=False, autoflush=False, bind=connection)()
-
-    yield session
-
-    session.close()
-    transaction.rollback()
-    connection.close()"""
 
 
 @pytest.fixture(scope="function")
