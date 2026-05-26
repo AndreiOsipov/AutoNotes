@@ -9,7 +9,7 @@ from src.core import get_settings
 
 settings = get_settings()
 
-sqlite_url = f"sqlite+aiosqlite:///{settings.DB}"
+db_url = settings.DB
 
 
 async def create_db_and_tables():
@@ -18,7 +18,7 @@ async def create_db_and_tables():
 
 
 engine = create_async_engine(
-    sqlite_url,
+    db_url,
     echo=True,
 )
 
