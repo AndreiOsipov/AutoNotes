@@ -64,7 +64,7 @@ AutoNotes/
 ├── .github/workflows/                # CI/CD конфигурации GitHub Actions
 │   └── ci.yml
 │ 
-├── certs/                            # JWT-ключи (private.pem, public.pem; не в git)
+├── certs/                            # JWT-ключи и TLS для HTTPS (*.pem; не в git)
 │
 ├── infra/                            # Docker/nginx для prod и dev
 │   ├── docker-compose.dev.yml

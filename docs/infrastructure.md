@@ -15,9 +15,8 @@ AutoNotes/
 ├── infra/
 │   ├── docker-compose.dev.yml  # Dev-override (merge, не дубликат)
 │   └── nginx/
-│       ├── nginx.conf
-│       └── certs/              # Опционально: TLS для HTTPS на nginx
-├── certs/                      # JWT-ключи (private.pem, public.pem; в .gitignore)
+│       └── nginx.conf
+├── certs/                      # JWT-ключи и опционально TLS для HTTPS (*.pem; в .gitignore)
 └── docs/infrastructure.md
 ```
 
@@ -119,12 +118,12 @@ docker compose up -d --scale backend=3
 
 ### 1. TLS на Nginx (рекомендуется в compose)
 
-1. Получите сертификаты (Let's Encrypt / корпоративный CA).
+1. Получите сертификаты (Let's Encrypt / корпоративный CA) и положите в `./certs/` рядом с JWT-ключами (например, `fullchain.pem`, `privkey.pem`).
 2. Смонтируйте в nginx:
 
 ```yaml
 volumes:
-  - ./infra/nginx/certs:/etc/nginx/certs:ro
+  - ./certs:/etc/nginx/certs:ro
 ports:
   - "443:443"
 ```
