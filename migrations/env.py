@@ -17,7 +17,17 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", "sqlite:///database.db")
+def _alembic_database_url() -> str:
+    """Alembic needs a synchronous driver URL."""
+    url = settings.DB
+    if "+asyncpg" in url:
+        return url.replace("+asyncpg", "+psycopg", 1)
+    if url.startswith("sqlite+aiosqlite"):
+        return url.replace("sqlite+aiosqlite", "sqlite", 1)
+    return url
+
+
+config.set_main_option("sqlalchemy.url", _alembic_database_url())
 
 # add your model's MetaData object here
 # for 'autogenerate' support

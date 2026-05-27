@@ -1,0 +1,16 @@
+# Dev-override: merge поверх docker-compose.yml (не отдельный стек).
+# Docker склеивает оба файла в одну конфигурацию:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  db:
+    ports:
+      - "${POSTGRES_PUBLISH_PORT:-5432}:5432"
+
+  backend:
+    ports:
+      - "${BACKEND_PUBLISH_PORT:-8000}:8000"
+
+  nginx:
+    ports:
+      - "${NGINX_HTTP_PORT:-8080}:80"

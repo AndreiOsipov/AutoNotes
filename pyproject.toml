@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "aiosqlite>=0.22.1",
+    "asyncpg>=0.30.0",
     "alembic>=1.18.4",
     "email-validator>=2.3.0",
     "fastapi>=0.136.1",
@@ -13,22 +14,76 @@ dependencies = [
     "moviepy>=2.2.1",
     "opencv-python>=4.13.0.92",
     "passlib[argon2]>=1.7.4",
+    "psycopg[binary]>=3.2.0",
     "pydantic-settings>=2.14.1",
     "pyjwt[crypto]>=2.12.1",
     "python-multipart>=0.0.29",
     "sqlmodel>=0.0.38",
+]
+
+# ML-стек: torch и transformers ставятся только через extra (cpu / cuda130 / rocm).
+# Без extra torch не установится — это намеренно, чтобы не тянуть GPU-сборку по умолчанию.
+[project.optional-dependencies]
+cpu = [
     "torch>=2.12.0",
     "transformers>=5.9.0",
 ]
+cuda130 = [
+    "torch>=2.12.0",
+    "transformers>=5.9.0",
+]
+rocm = [
+    "torch>=2.12.0",
+    "transformers>=5.9.0",
+    "pytorch-triton-rocm>=3.5.1 ; sys_platform == 'linux'",
+    "triton-rocm>=3.6.0 ; sys_platform == 'linux'",
+]
 
-# Группа библиотек для тестирования
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
     "pytest-asyncio>=1.3.0",
 ]
 
-# Настройка тестов
+# Взаимоисключающие backend'ы: одновременно cpu + cuda130 + rocm нельзя.
+[tool.uv]
+conflicts = [
+    [{ extra = "cpu" }, { extra = "cuda130" }],
+    [{ extra = "cpu" }, { extra = "rocm" }],
+    [{ extra = "cuda130" }, { extra = "rocm" }],
+]
+
+# Отдельные индексы PyTorch. explicit = true — индекс используется только для torch-экосистемы.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-rocm"
+url = "https://download.pytorch.org/whl/rocm7.2"
+explicit = true
+
+# Маршрутизация пакетов по extra и платформе.
+# torch — direct dependency в extras, иначе sources не применятся.
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu130", extra = "cuda130", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+    { index = "pytorch-rocm", extra = "rocm", marker = "sys_platform == 'linux'" },
+]
+pytorch-triton-rocm = [
+    { index = "pytorch-rocm", extra = "rocm", marker = "sys_platform == 'linux'" },
+]
+triton-rocm = [
+    { index = "pytorch-rocm", extra = "rocm", marker = "sys_platform == 'linux'" },
+]
+
 [tool.pytest.ini_options]
 pythonpath = "."
 asyncio_mode = "auto"
