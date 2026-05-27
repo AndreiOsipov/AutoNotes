@@ -4,7 +4,6 @@ from fastapi import FastAPI, status
 
 from src.api import Tags, all_router, tags_metadata
 from src.core import get_settings
-from src.db import create_db_and_tables
 from src.subtitles.subtitles import ImageCaption, Subtitles, TextSummarizer
 
 settings = get_settings()
@@ -12,7 +11,6 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await create_db_and_tables()
     Subtitles()  # Точно ли это надо?
     ImageCaption()  # Точно ли это надо?
     TextSummarizer()  # Точно ли это надо?

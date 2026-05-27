@@ -1,8 +1,8 @@
 """init
 
-Revision ID: 82dba1826c33
+Revision ID: 80d32b92d640
 Revises:
-Create Date: 2026-05-24 17:52:21.496232
+Create Date: 2026-05-27 15:15:59.662526
 
 """
 
@@ -13,7 +13,7 @@ import sqlmodel
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "82dba1826c33"
+revision: str = "80d32b92d640"
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -41,7 +41,7 @@ def upgrade() -> None:
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
-            server_default=sa.text("(CURRENT_TIMESTAMP)"),
+            server_default=sa.text("now()"),
             nullable=False,
         ),
         sa.Column("expires_at", sa.DateTime(), nullable=False),
@@ -64,7 +64,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("transcription", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("transcription_ready", sa.Boolean(), nullable=False),
-        sa.Column("user_id", sa.Integer(), nullable=True),
+        sa.Column("user_id", sa.Uuid(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("completed_at", sa.DateTime(), nullable=True),
         sa.Column("video_path", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
@@ -83,7 +83,7 @@ def upgrade() -> None:
             "comment", sqlmodel.sql.sqltypes.AutoString(length=2000), nullable=False
         ),
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("user_id", sa.Uuid(), nullable=False),
         sa.Column("created_dt_tm", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(
             ["transcription_id"],

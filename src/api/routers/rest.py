@@ -14,8 +14,7 @@ from fastapi import (
 )
 from sqlmodel import Session, asc, desc, join, select
 
-from src.api import get_current_active_user
-from src.db.database import SessionDep
+from src.api import SessionDep, get_current_active_user
 from src.models import (
     Review,
     ReviewCreate,

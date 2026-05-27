@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from uuid import UUID
 
 from sqlmodel import Field, SQLModel
 
@@ -20,9 +21,13 @@ class ReviewResponse(ReviewCreate):
 
 
 # Отзывы
-class Review(ReviewResponse, table=True):
+class Review(ReviewCreate, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.id", index=True)
+
+    user_id: UUID = Field(
+        foreign_key="users.id",
+        index=True,
+    )
 
     created_dt_tm: datetime = Field(
         default_factory=lambda: datetime.now(UTC).replace(tzinfo=None)

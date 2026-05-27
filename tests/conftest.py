@@ -1,5 +1,4 @@
 from datetime import datetime
-from pathlib import Path
 from typing import AsyncGenerator
 from unittest.mock import MagicMock
 
@@ -14,13 +13,13 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlmodel import SQLModel
+from testcontainers.postgres import PostgresContainer
 
+from src.core import get_settings
 from src.db import get_session
 from src.main import app
 
-TEST_DB_PATH = Path(__file__).resolve().parent / "test.db"
-TEST_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
-ALEMBIC_DATABASE_URL = f"sqlite:///{TEST_DB_PATH}"
+settings = get_settings()
 
 
 @pytest.fixture
@@ -29,27 +28,61 @@ def fastapi_app():
 
 
 @pytest.fixture(scope="session")
-async def engine(apply_migrations):
+def postgres_container():
+    container = PostgresContainer(
+        "postgres:17",
+        username=settings.POSTGRES_USER,
+        password=settings.POSTGRES_PASSWORD,
+        dbname=settings.POSTGRES_DB,
+    )
+    container.with_bind_ports(5432, settings.POSTGRES_PORT)
+
+    container.start()
+
+    yield container
+
+    container.stop()
+
+
+@pytest.fixture(scope="session")
+def test_db_url(postgres_container):
+    sync_url = postgres_container.get_connection_url()
+
+    async_url = sync_url.replace(
+        "postgresql+psycopg2://",
+        "postgresql+asyncpg://",
+    )
+
+    return async_url
+
+
+@pytest.fixture(scope="session")
+async def engine(apply_migrations, test_db_url):
     """Асинхронный движок зависит от фикстуры миграций."""
-    engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+    engine = create_async_engine(test_db_url, echo=False)
 
     yield engine
 
     await engine.dispose()
 
 
-@pytest.fixture(scope="session")
-def apply_migrations():
+@pytest.fixture(scope="session", autouse=True)
+def apply_migrations(postgres_container):
     """Фикстура для применения миграций Alembic к тестовой БД."""
     # Указываем путь к alembic.ini (убедись, что путь корректный относительно запуска pytest)
     alembic_cfg = Config("alembic.ini")
+    sync_url = postgres_container.get_connection_url()
 
+    sync_url = sync_url.replace(
+        "postgresql+psycopg2://",
+        "postgresql+psycopg://",
+    )
     # Переопределяем URL БД в конфиге Alembic, чтобы он смотрел в тестовую базу, а не в основную
-    alembic_cfg.set_main_option("sqlalchemy.url", "sqlite:///tests/test.db")
+    alembic_cfg.set_main_option("sqlalchemy.url", sync_url)
 
     # Накатываем миграции до актуального состояния
+    command.downgrade(alembic_cfg, "base")
     command.upgrade(alembic_cfg, "head")
-
     yield
 
     # После завершения всех тестов откатываем БД в ноль
@@ -57,10 +90,13 @@ def apply_migrations():
 
 
 @pytest.fixture(autouse=True)
-async def clean_db(apply_migrations, engine):
+async def clean_db(engine, apply_migrations):
     async with engine.begin() as conn:
         for table in reversed(SQLModel.metadata.sorted_tables):
             await conn.execute(table.delete())
+
+
+#        await conn.commit()
 
 
 @pytest.fixture

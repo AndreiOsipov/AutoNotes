@@ -9,7 +9,7 @@
 
 # === BACKEND ===
 # Security
-.env
+*.env
 *.pem
 
 # Python
