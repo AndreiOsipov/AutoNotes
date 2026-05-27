@@ -1,6 +1,6 @@
 # Dev-override: merge поверх docker-compose.yml (не отдельный стек).
-# Docker склеивает оба файла в одну конфигурацию:
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Запуск из корня репозитория:
+#   docker compose -f docker-compose.yml -f infra/docker-compose.dev.yml up --build
 
 services:
   db:

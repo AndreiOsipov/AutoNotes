@@ -6,15 +6,18 @@ Production-ready стек: **Nginx → Backend (FastAPI) → PostgreSQL** с и�
 
 ```
 AutoNotes/
-├── Dockerfile                  # Backend-образ (эволюция прежнего корневого Dockerfile)
+├── Dockerfile                  # Backend-образ
 ├── docker-compose.yml          # Основной стек: db + backend + nginx
-├── docker-compose.dev.yml      # Dev-override (merge, не дубликат)
 ├── .env.example
 ├── .dockerignore
 ├── docker/
 │   └── entrypoint.sh           # Alembic + uvicorn
-├── deploy/nginx/nginx.conf
-├── certs/
+├── infra/
+│   ├── docker-compose.dev.yml  # Dev-override (merge, не дубликат)
+│   └── nginx/
+│       ├── nginx.conf
+│       └── certs/              # Опционально: TLS для HTTPS на nginx
+├── certs/                      # JWT-ключи (private.pem, public.pem; в .gitignore)
 └── docs/infrastructure.md
 ```
 
@@ -59,7 +62,11 @@ Docker встроенный DNS: имя сервиса из `docker-compose.yml`
 
 ```bash
 cp .env.example .env
-# Отредактируйте пароли, положите private.pem / public.pem в ./certs/
+# Пароли в .env; JWT-ключи в ./certs/ (см. .env.example)
+
+mkdir -p certs
+openssl genrsa -out certs/private.pem 2048
+openssl rsa -in certs/private.pem -pubout -out certs/public.pem
 
 docker compose up -d --build
 curl http://localhost/health
@@ -68,8 +75,10 @@ curl http://localhost/health
 Разработка с пробросом портов (merge двух файлов в одну конфигурацию):
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+docker compose -f docker-compose.yml -f infra/docker-compose.dev.yml up --build
 ```
+
+API через nginx: `http://localhost:8080` (dev), health: `curl http://localhost:8080/health`.
 
 ## `expose` vs `ports`
 
@@ -97,17 +106,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 docker compose up -d --scale backend=3
 ```
 
-Для нескольких реплик backend обновите `deploy/nginx/nginx.conf`:
-
-```nginx
-upstream backend_upstream {
-    least_conn;
-    server backend:8000;
-    keepalive 32;
-}
-```
-
-Compose DNS для масштабированных сервисов резолвит **все** IP реплик по имени `backend` — nginx upstream получит несколько backend'ов.
+При нескольких репликах backend расширьте `infra/nginx/nginx.conf` — например, `upstream` с `server backend:8000` (Compose DNS отдаёт все IP реплик по имени `backend`).
 
 Учтите:
 
@@ -125,12 +124,12 @@ Compose DNS для масштабированных сервисов резол�
 
 ```yaml
 volumes:
-  - ./deploy/nginx/certs:/etc/nginx/certs:ro
+  - ./infra/nginx/certs:/etc/nginx/certs:ro
 ports:
   - "443:443"
 ```
 
-3. Добавьте `server { listen 443 ssl; ... }` в `nginx.conf`.
+3. Добавьте `server { listen 443 ssl; ... }` в `infra/nginx/nginx.conf`.
 4. В `.env`: `SESSION_COOKIE_SECURE=true`.
 
 ### 2. Внешний reverse proxy
