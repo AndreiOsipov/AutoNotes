@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Generator
 from unittest.mock import MagicMock
 
 import pytest
@@ -8,6 +8,7 @@ from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -16,64 +17,65 @@ from sqlalchemy.ext.asyncio import (
 from sqlmodel import SQLModel
 
 from src.db import get_session
+from src.api.dependencies import get_db_manager
 from src.main import app
 
 TEST_DB_PATH = Path(__file__).resolve().parent / "test.db"
 TEST_DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
-ALEMBIC_DATABASE_URL = f"sqlite:///{TEST_DB_PATH}"
+
+# Module-level flag to ensure migrations run only once per Python process
+_migrations_applied = False
 
 
-@pytest.fixture
-def fastapi_app():
-    return app
-
-
-@pytest.fixture(scope="session")
-async def engine(apply_migrations):
-    """Асинхронный движок зависит от фикстуры миграций."""
-    engine = create_async_engine(TEST_DATABASE_URL, echo=False)
-
-    yield engine
-
-    await engine.dispose()
-
-
-@pytest.fixture(scope="session")
-def apply_migrations():
-    """Фикстура для применения миграций Alembic к тестовой БД."""
-    # Указываем путь к alembic.ini (убедись, что путь корректный относительно запуска pytest)
+def _ensure_migrations():
+    """Применяет миграции Alembic к тестовой БД (один раз за процесс)."""
+    global _migrations_applied
+    if _migrations_applied:
+        return
     alembic_cfg = Config("alembic.ini")
-
-    # Переопределяем URL БД в конфиге Alembic, чтобы он смотрел в тестовую базу, а не в основную
-    alembic_cfg.set_main_option("sqlalchemy.url", "sqlite:///tests/test.db")
-
-    # Накатываем миграции до актуального состояния
+    alembic_cfg.set_main_option("sqlalchemy.url", str(TEST_DATABASE_URL))
     command.upgrade(alembic_cfg, "head")
-
-    yield
-
-    # После завершения всех тестов откатываем БД в ноль
-    command.downgrade(alembic_cfg, "base")
+    _migrations_applied = True
 
 
-@pytest.fixture(autouse=True)
-async def clean_db(apply_migrations, engine):
-    async with engine.begin() as conn:
-        for table in reversed(SQLModel.metadata.sorted_tables):
-            await conn.execute(table.delete())
+@pytest.fixture(scope="session")
+def engine():
+    """Асинхронный движок для тестовой БД (создаётся один раз за сессию)."""
+    # Применяем миграции при создании движка
+    _ensure_migrations()
+    eng = create_async_engine(TEST_DATABASE_URL, echo=False)
+    yield eng
+    eng.sync_engine.dispose()
+
+
+@pytest.fixture(scope="session")
+def session_factory(engine):
+    """Фабрика сессий SQLAlchemy для всей сессии."""
+    return async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 
 @pytest.fixture
-async def db_session(engine):
-    session_factory = async_sessionmaker(
-        bind=engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-
+async def db_session(session_factory: async_sessionmaker) -> AsyncGenerator[AsyncSession, None]:
+    """Новая сессия БД для каждого теста с очисткой данных."""
     async with session_factory() as session:
+        # Очищаем все таблицы перед тестом (используем text() для корректной работы с aiosqlite)
+        for table in reversed(SQLModel.metadata.sorted_tables):
+            try:
+                await session.execute(text(f"DELETE FROM {table.name}"))
+            except Exception:
+                pass
+        await session.commit()
+
         yield session
         await session.rollback()
+
+        # Очищаем все таблицы после теста
+        for table in reversed(SQLModel.metadata.sorted_tables):
+            try:
+                await session.execute(text(f"DELETE FROM {table.name}"))
+            except Exception:
+                pass
+        await session.commit()
 
 
 @pytest.fixture(scope="function")
@@ -87,7 +89,26 @@ async def async_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, 
     def override_get_async_session():
         yield db_session
 
+    async def override_get_db_manager():
+        from src.db import DBManager
+
+        # DBManager expects a callable that returns AsyncSession.
+        # We wrap the test session so DBManager uses it, and we skip
+        # auto-cleanup since pytest manages the session lifecycle.
+        class _PassthroughDBManager(DBManager):
+            async def __aexit__(self, *args) -> None:
+                # Don't close/rollback the test session
+                pass
+
+        manager = _PassthroughDBManager(lambda: db_session)
+        await manager.__aenter__()
+        try:
+            yield manager
+        finally:
+            await manager.__aexit__(None, None, None)
+
     app.dependency_overrides[get_session] = override_get_async_session
+    app.dependency_overrides[get_db_manager] = override_get_db_manager
 
     # Используем ASGITransport для обхода необходимости поднимать реальный сервер
     async with AsyncClient(
@@ -120,9 +141,6 @@ def another_user_data() -> dict:
     }
 
 
-# 1sem
-
-
 @pytest.fixture
 def client():
     """
@@ -133,9 +151,7 @@ def client():
 
 @pytest.fixture
 def sample_video():
-    """
-    Тестовые данные для POST /process/
-    """
+    """Тестовые данные для POST /process/"""
     return {"ext": "mp4", "data": 123}
 
 

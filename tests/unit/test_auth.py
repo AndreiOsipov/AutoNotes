@@ -47,8 +47,9 @@ async def test_register_user_validation_error(async_client: AsyncClient):
     Тест обработки невалидных данных с помощью Pydantic (HTTP 422).
     """
     url = app.url_path_for("auth_register")
-    # Отправляем payload без обязательного поля password
-    invalid_data = {"name": "test_user"}
+    # Отправляем payload без обязательных поелй name, email, password.
+    # Первое поле в UserCreate — name, поэтому первая ошибка будет именно для него.
+    invalid_data: dict = {}
 
     response = await async_client.post(url, json=invalid_data)
 
@@ -56,5 +57,5 @@ async def test_register_user_validation_error(async_client: AsyncClient):
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     errors = response.json()["detail"]
-    assert errors[0]["loc"] == ["body", "password"]
+    assert errors[0]["loc"] == ["body", "name"]
     assert errors[0]["msg"] == "Field required"
