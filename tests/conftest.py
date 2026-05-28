@@ -29,29 +29,36 @@ def fastapi_app():
 
 @pytest.fixture(scope="session")
 def postgres_container():
-    container = PostgresContainer(
-        "postgres:17",
-        username=settings.POSTGRES_USER,
-        password=settings.POSTGRES_PASSWORD,
-        dbname=settings.POSTGRES_DB,
-    )
-    container.with_bind_ports(5432, settings.POSTGRES_PORT)
 
-    container.start()
+    if settings.TESTCONTAINER:
+        container = PostgresContainer(
+            "postgres:17",
+            username=settings.POSTGRES_USER,
+            password=settings.POSTGRES_PASSWORD,
+            dbname=settings.POSTGRES_DB,
+        )
+        container.with_bind_ports(5432, settings.POSTGRES_PORT)
 
-    yield container
+        container.start()
 
-    container.stop()
+        yield container
+
+        container.stop()
+    else:
+        return
 
 
 @pytest.fixture(scope="session")
 def test_db_url(postgres_container):
-    sync_url = postgres_container.get_connection_url()
+    if settings.TESTCONTAINER:
+        sync_url = postgres_container.get_connection_url()
 
-    async_url = sync_url.replace(
-        "postgresql+psycopg2://",
-        "postgresql+asyncpg://",
-    )
+        async_url = sync_url.replace(
+            "postgresql+psycopg2://",
+            "postgresql+asyncpg://",
+        )
+    else:
+        async_url = str(settings.ASYNC_DB_URL)
 
     return async_url
 
@@ -71,12 +78,15 @@ def apply_migrations(postgres_container):
     """Фикстура для применения миграций Alembic к тестовой БД."""
     # Указываем путь к alembic.ini (убедись, что путь корректный относительно запуска pytest)
     alembic_cfg = Config("alembic.ini")
-    sync_url = postgres_container.get_connection_url()
+    if settings.TESTCONTAINER:
+        sync_url = postgres_container.get_connection_url()
 
-    sync_url = sync_url.replace(
-        "postgresql+psycopg2://",
-        "postgresql+psycopg://",
-    )
+        sync_url = sync_url.replace(
+            "postgresql+psycopg2://",
+            "postgresql+psycopg://",
+        )
+    else:
+        sync_url = str(settings.SYNC_DB_URL)
     # Переопределяем URL БД в конфиге Alembic, чтобы он смотрел в тестовую базу, а не в основную
     alembic_cfg.set_main_option("sqlalchemy.url", sync_url)
 
@@ -94,9 +104,6 @@ async def clean_db(engine, apply_migrations):
     async with engine.begin() as conn:
         for table in reversed(SQLModel.metadata.sorted_tables):
             await conn.execute(table.delete())
-
-
-#        await conn.commit()
 
 
 @pytest.fixture

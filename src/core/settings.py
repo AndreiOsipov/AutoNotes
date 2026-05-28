@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     PRIVATE_KEY: str = Field(default="")
     PUBLIC_KEY: str = Field(default="")
 
+    # Testcontainer
+    TESTCONTAINER: bool = Field(default=...)
+
     @computed_field
     @property
     def ASYNC_DB_URL(self) -> PostgresDsn:
