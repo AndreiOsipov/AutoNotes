@@ -31,13 +31,27 @@ cd AutoNotes
 ```bash
 cp .env.example .env
 ```
-3. Установка зависимостей
+3. JWT-ключи (для авторизации и Docker)
+```bash
+mkdir -p certs
+openssl genrsa -out certs/private.pem 2048
+openssl rsa -in certs/private.pem -pubout -out certs/public.pem
+```
+
+4. Запуск через Docker (рекомендуется)
+```bash
+docker compose up -d --build
+curl http://localhost/health
+```
+Dev с пробросом портов: `docker compose -f docker-compose.yml -f infra/docker-compose.dev.yml up --build`
+
+5. Установка зависимостей (локально без Docker)
 ```bash
 python3 -m venv venv
 source venv/bin/activate  # Для Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
-4. Запуск тестов
+6. Запуск тестов
 Чтобы убедиться, что всё настроено верно:
 ```bash
 PYTHONPATH=. pytest
@@ -50,7 +64,15 @@ AutoNotes/
 ├── .github/workflows/                # CI/CD конфигурации GitHub Actions
 │   └── ci.yml
 │ 
-├── certs/                            # SSL/TLS сертификаты и ключи
+├── certs/                            # JWT-ключи и TLS для HTTPS (*.pem; не в git)
+│
+├── infra/                            # Docker/nginx для prod и dev
+│   ├── docker-compose.dev.yml
+│   └── nginx/nginx.conf
+│
+├── docker-compose.yml
+├── Dockerfile
+├── docker/entrypoint.sh
 │
 ├── src/                              # Основной исходный код приложения
 │   │
