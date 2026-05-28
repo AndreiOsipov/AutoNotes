@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -16,11 +17,12 @@ def session():
 
 
 def test_user_stats_calculation(session: Session):
+    test_user_id = uuid.uuid4()
     start_time = datetime.now(UTC) - timedelta(minutes=10)
 
     # Явно передаем путь к видео и текст, чтобы не ловить ошибки базы
     video = VideoTranscription(
-        user_id=1,
+        user_id=test_user_id,
         created_at=start_time,
         completed_at=datetime.now(UTC),
         video_path="test.mp4",
@@ -31,7 +33,7 @@ def test_user_stats_calculation(session: Session):
     session.commit()
 
     # 3. Проверяем статистику
-    stats = get_user_stats(session, user_id=1)
+    stats = get_user_stats(session, user_id=test_user_id)
 
     assert stats["total_videos"] == 1
     # Время должно быть ровно 600 секунд (10 минут)

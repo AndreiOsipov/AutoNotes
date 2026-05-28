@@ -15,6 +15,9 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 
+config.set_main_option("sqlalchemy.url", str(settings.SYNC_DB_URL))
+
+
 target_metadata = SQLModel.metadata
 
 

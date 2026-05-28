@@ -116,8 +116,8 @@ class TestNotesSynchronizer:
         subtitles_mock, image_caption_mock, summarizer_mock = mock_models
         return NotesSynchronizer(subtitles_mock, image_caption_mock, summarizer_mock)
 
-    @patch("NotesSynchronizer.notes_synchronizer.extract_audio")
-    @patch("NotesSynchronizer.notes_synchronizer.extract_frames")
+    @patch("src.NotesSynchronizer.notes_synchronizer.extract_audio")
+    @patch("src.NotesSynchronizer.notes_synchronizer.extract_frames")
     def test_synchronize_success(
         self, mock_extract_frames, mock_extract_audio, synchronizer
     ):

@@ -1,9 +1,11 @@
+from uuid import UUID
+
 from sqlmodel import Session, select
 
 from src.models import VideoTranscription
 
 
-def get_user_stats(session: Session, user_id: int):
+def get_user_stats(session: Session, user_id: UUID):
     """Считает количество видео и среднее время обработки для юзера"""
     statement = select(VideoTranscription).where(
         VideoTranscription.user_id == user_id,

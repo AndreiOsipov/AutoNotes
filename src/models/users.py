@@ -1,13 +1,13 @@
-import uuid
 from datetime import datetime
+from uuid import UUID, uuid4
 
 from sqlalchemy import Column, DateTime, String, func
 from sqlmodel import Field, Relationship, SQLModel
 
 
 class Users(SQLModel, table=True):
-    id: uuid.UUID = Field(
-        default_factory=uuid.uuid4,
+    id: UUID = Field(
+        default_factory=uuid4,
         primary_key=True,
     )
     name: str = Field(
@@ -39,11 +39,11 @@ class Users(SQLModel, table=True):
 
 
 class RefreshToken(SQLModel, table=True):
-    id: uuid.UUID = Field(
-        default_factory=lambda: str(uuid.uuid4()),
+    id: UUID = Field(
+        default_factory=lambda: str(uuid4()),
         primary_key=True,
     )
-    user_id: uuid.UUID = Field(
+    user_id: UUID = Field(
         foreign_key="users.id",
         index=True,
     )
