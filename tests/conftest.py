@@ -45,7 +45,7 @@ def postgres_container():
 
         container.stop()
     else:
-        return
+        yield None
 
 
 @pytest.fixture(scope="session")
