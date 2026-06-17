@@ -29,6 +29,21 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci_user
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: ci_db
+        options: >-
+          --health-cmd "pg_isready -U ci_user -d ci_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -75,3 +90,16 @@ jobs:
           TESTCONTAINER: "true"
         run: |
           uv run pytest
+      - name: Check migrations match ORM
+        env:
+          POSTGRES_USER: "ci_user"
+          POSTGRES_PASSWORD: "ci_password"
+          POSTGRES_SERVER: "localhost"
+          POSTGRES_PORT: "5432"
+          POSTGRES_DB: "ci_db"
+          JWT_PRIVATE_KEY_PATH: "./certs/private.pem"
+          JWT_PUBLIC_KEY_PATH: "./certs/public.pem"
+          JWT_ALGORITHM: "RS256"
+          JWT_ISSUER: "autonotes-ci"
+          JWT_AUDIENCE: "autonotes-api"
+        run: uv run alembic check
