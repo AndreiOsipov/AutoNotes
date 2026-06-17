@@ -2,67 +2,76 @@ name: Python CI
 
 on:
   push:
-    # Символ '*' означает "любая ветка".
-    # Теперь CI будет срабатывать везде, где есть этот файл.
     branches: ["**"]
+    paths-ignore:
+      - README.md
+      - .env.example
+      - LICENSE
   pull_request:
-    # Запускать проверки, когда кто-то хочет влиться в главную ветку
     branches: [main, master]
 
 jobs:
-  pep8:
+  ruff:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
 
-      - name: Install dependencies
+      - name: Lint and Format
         run: |
-          python -m pip install --upgrade pip
-          pip install flake8
-  
-      - name: Format code (Black)
-        run: |
-          pip install black
-          black . --line-length 79
+          uvx ruff check .
+          uvx ruff format --check .
 
-      - name: Run flake8 (PEP8)
-        run: |
-          flake8 .
   test:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          # Устанавливаем зависимости. 
-          # Добавляем --extra-index-url для torch, если он будет долго качаться, 
-          # но для начала хватит и обычного requirements.
-          pip install -r requirements.txt
-          pip install pytest httpx
+          uv sync --extra cpu --group dev
+
+      - name: Generate RSA certs for tests
+        run: |
+          mkdir -p certs
+          openssl genrsa -out certs/private.pem 2048
+          openssl rsa -in certs/private.pem -pubout -out certs/public.pem
 
       - name: Run tests
-        # Перечисляем все переменные из твоего env.example
         env:
-          SECRET_KEY: "super-secret-test-key"
-          ALGORITHM: "HS256"
-          ACCESS_TOKEN_EXPIRE_MINUTES: "30"
-        # Добавь сюда остальные переменные, если они есть в env.example
+          PROJECT_NAME: "AutoNotes CI"
+          PROJECT_DESCRIPTION: "CI test run"
+          PROJECT_VERSION: "1.0.0"
+          JWT_PRIVATE_KEY_PATH: "./certs/private.pem"
+          JWT_PUBLIC_KEY_PATH: "./certs/public.pem"
+          JWT_ALGORITHM: "RS256"
+          ACCESS_TOKEN_EXPIRES_MINUTES: "15"
+          REFRESH_TOKEN_EXPIRES_MINUTES: "43200"
+          ACCESS_COOKIE_NAME: "access_token"
+          REFRESH_COOKIE_NAME: "refresh_token"
+          SESSION_COOKIE_SECURE: "false"
+          SESSION_COOKIE_DOMAIN: ""
+          JWT_ISSUER: "autonotes-ci"
+          JWT_AUDIENCE: "autonotes-api"
+          POSTGRES_USER: "ci_user"
+          POSTGRES_PASSWORD: "ci_password"
+          POSTGRES_SERVER: "localhost"
+          POSTGRES_PORT: "5432"
+          POSTGRES_DB: "ci_db"
+          TESTCONTAINER: "true"
         run: |
-          PYTHONPATH=. python -m pytest
+          uv run pytest

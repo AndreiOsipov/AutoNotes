@@ -1,0 +1,39 @@
+# Git & IDE
+.git
+.github
+.cursor
+.vscode
+.idea
+
+# Python / uv
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+htmlcov
+.coverage
+
+# Secrets & local env
+.env
+.env.*
+!.env.example
+*.pem
+
+# Databases & runtime data
+database.db
+test.db
+postgres_data
+
+# Media caches (mount as volumes in compose)
+src/subtitles/dir_video/*
+src/subtitles/dir_audio/*
+src/subtitles/dir_txt/*
+src/subtitles/dir_text/*
+src/subtitles/parsed_images/*
+
+# Docs / misc
+*.md
+!README.md
+LICENSE
