@@ -85,6 +85,9 @@ triton-rocm = [
     { index = "pytorch-rocm", extra = "rocm", marker = "sys_platform == 'linux'" },
 ]
 
+[tool.ruff]
+exclude = ["migrations/"]
+
 [tool.pytest.ini_options]
 pythonpath = "."
 asyncio_mode = "auto"
