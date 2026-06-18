@@ -1,105 +1,129 @@
 # AutoNotes
-AutoNotes — нейросервис для конспектирования видео. 
+AutoNotes — API-сервис для конспектирования видео материала, с исползованием AI. 
 
-## 🔍 О проекте
+## Содержание
+- [О проекте](#о-проекте)
+- [Основные возможности](#основные-возможности)
+- [Предварительные требования](#предварительные-требования)
+  - [1. Docker](#1-docker)
+  - [2. Make](#2-make)
+- [Быстрый старт](#быстрый-старт)
+- [Доступ после старта](#доступ-после-старта)
+- [Структура проекта](#структура-проекта)
+
+Дополнительно:
+- [Документация по backend](./docs/BACKEND.md)
+- [Документация по тестам](./docs/TEST.md)
+- [Документация по инфраструктуре](./docs/INFRASTRUCTURE.md)
+- [Документация по CI/CD](./docs/CI-CD.md)
+
+## О проекте
 AutoNotes превращает видеоролики (лекции) в структурированные конспекты.
 
 Сервис использует современные алгоритмы распознавания речи, текста на изображении и обработки естественного языка, чтобы выделить главное и сократить время на просмотр.
 
 AutoNotes идеально заточен под студентов, исследователей, преподавателей и всех, кто учится или работает с видеоуроками, лекциями и интервью.
 
-## 💪 Основные возможности
+## Основные возможности
  - Автоматическое распознавание речи и составление текста.
  - Генерация краткого конспекта и тезисов по видео.
  - Таймкоды с переходом к нужному фрагменту.
  - Возможность экспорта в PDF или Markdown.
 
-## 🚀 Быстрый старт
-1. Клонирование репозитория
-```bash   
-git clone [https://github.com/AndreiOsipov/AutoNotes.git](https://github.com/AndreiOsipov/AutoNotes.git)
+ ## Предварительные требования
+ 
+ Для максимально удобного и быстрого развертывания проекта локально, убедитесь, что установлены такие инструменты, как:
+ 
+ ### 1. Docker
+ Используется для поднятия изолированного окружения. Для локальной разработки удобнее всего использовать **Docker Desktop**.
+ 
+ - **macOS:** [Скачать Docker Desktop для Mac](https://docs.docker.com/desktop/setup/install/mac-install/)
+ - **Windows:** [Скачать Docker Desktop для Windows](https://docs.docker.com/desktop/install/windows-install/)
+ - **Linux:** [Инструкции по установке для Linux](https://docs.docker.com/desktop/install/linux-install/) 
+ 
+ ### 2. Make
+ В проекте используется **Makefile**, который выступает единой точкой входа для всех базовых команд.
+ 
+ - **macOS:** Установлен по умолчанию в составе утилит разработчика. Если команда `make` не найдена, выполните в терминале:
+ ```bash
+ xcode-select --install
+ ```
+ - **Windows:** Утилита `make` можно установить, выполнил команду в **PowerShell** от имени администратора:
+ ```powershell
+ winget install GnuWin32.Make
+ ```
+ - **Linux (Ubuntu/Debian):** Устанавливается через терминал командой:
+ ```bash
+ sudo apt update && sudo apt install make
+ ```
+
+## Быстрый локальный старт
+
+**1. Клонируем проект**
+
+```bash
+git clone https://github.com/AndreiOsipov/AutoNotes.git
+```
+
+**2. Перемещаемся в директорию проекта**
+```bash
 cd AutoNotes
 ```
-2. Настройка окружения
-Создайте файл .env на основе примера:
+
+**3. Запуск проекта черещ Make**
+
 ```bash
-cp .env.example .env
+make up
 ```
-3. Установка зависимостей
-```bash
-python3 -m venv venv
-source venv/bin/activate  # Для Windows: venv\Scripts\activate
-pip install -r requirements.txt
+
+## Доступ после старта
+**API**
 ```
-4. Запуск тестов
-Чтобы убедиться, что всё настроено верно:
-```bash
-PYTHONPATH=. pytest
+http://localhost:8080
 ```
-## 🩻 Структура проекта
+
+**Swagger UI (OpenAPI)**
 ```
-📁 AutoNotes/
-├── 📁 .github/
-│   └─── 📁 workflows/
-│        └─── ci.yml
-├── 📁 NotesSynchronizer/
-│   └─── notes_synchronizer.py   
-├── 📁 config/
-│   └─── config.py
-├── 📁 services/
-│   └─── video_service.py
-├── 📁 subtitles/
-│   ├─── 📁 dir_audio/
-│   ├─── 📁 dir_txt/
-│   ├─── 📁 dit_video/
-│   ├─── 📁 parsed_images/
-│   └─── subtitles.py
-├── 📁 tests/
-│   ├─── 📁 unit/
-│   │    ├─── test_users_router.py
-│   │    └─── test_video_transcription.py
-│   ├─── conftest.py
-│   ├─── test_db.py
-│   └─── test_notes_synchronizer.py
-├── 📁 users/
-│   ├─── users_router.py
-│   └─── users.py
-├── 📁 utils/
-│   └─── utils.py
-├── .env
-├── .env.example
-├── .gitignore
-├── db.py
-├── main.py
-└── requirements.txt
+http://localhost:8080/docs
 ```
- - 📁 .github/ 📁 workflows/ — конфигурации GitHub Actions;
- - ci.yml — конфигурация continuous integration;
- - 📁 NotesSynchronizer/ — директория по синхронизации транскрипций;
- - notes_synchronizer.py — модуль по синхронизации транскрипций;
- - 📁 config/ — директория для глобальной настройки проекта и валидация .env;
- - config.py — модуль для глобальныой настройки проекта и валидация .env;
- - 📁 subtitles/ — модуль глубокого анализа медиаконтента;
- - 📁 dir_audio/ — временное хранилище извлеченных звуковых дорожек;
- - 📁 dir_txt/ — промежуточные текстовые результаты транскрипции;
- - 📁 dit_video/ — кэш загруженных видеофайлов;
- - 📁 parsed_images/ — кадры, извлеченные из видео для анализа контента;
- - subtitles.py — реализует интеллектуальную обработку видео через три типа нейросетей;
- - 📁 tests/ — инфраструктура тестирования;
- - 📁 unit/ — изолированные тесты отдельных модулей (API, логика);
- - test_users_router.py — модуль юнит тестов ручек авторизации;
- - test_video_transcription.py — модуль юнит тестов транскрипций;
- - conftest.py — модуль создания глобальных фикстур для тестов;
- - test_db.py — модуль создания тестовой базы данных;
- - test_notes_synchronizer.py — модуль тестов синхронизации транскрипции;
- - 📁 users/ — управление пользователями, JWT-авторизация и роутинг;
- - users_router.py — модуль роутеров для users;
- - users.py — модуль логики работы с пользователем;
- - 📁 utils/ — директория вспомогательных утилит (логирования, форматтеров);
- - utils.py — модуль где вспомогательные утилиты (логирование, форматтеры);
- - .env — файл с секретами - обязательно добавить в .gitignore;
- - .env.example — файл с примерами секретов для удалённого репозитория;
- - .gitignore — для исключения временных/лишних файлов (рекомендуется);
- - db.py — инициализация SQLModel, описание таблиц и связей;
- - main.py — основной скрипт (исполняемый файл);
- - requirements.txt — зависимости (опционально).
+
+**ReDoc**
+```
+http://localhost:8080/redoc
+```
+
+## Структура проекта
+```
+AutoNotes/
+│ 
+├── .github/workflows/                # CI/CD конфигурации GitHub Actions
+│ 
+├── certs/                            # JWT-ключи и TLS для HTTPS
+│
+├── docker/                           # вспомогательные Docker-скрипты
+│
+├── docs/                             # документации проекта
+│
+├── infra/                            # инфраструктура
+│
+├── migrations/                       # миграции базыданных (alembic)
+│
+├── scripts/                          # утилиты и вспомогательные скрипты
+│
+├── src/                              # основной код backend
+│
+├── tests/                            # тесты проекта
+│
+├── .dockeringore                     # исключения для Docker build context
+├── .env.example                      # шаблон переменных окружения
+├── .gitignore                        # исключения git
+├── .python-version                   # версия Python (uv)
+├── Dockerfile                        # основной Docker образ backend
+├── LICENSE                           # лицензия проекта
+├── Makefile                          # команды автоматизации
+├── README.md                         # описание проекта
+├── alembic.ini                       # конфигурация Alembic
+├── docker-compose.yml                # локальный orchestration сервисов
+├── pyproject.toml                    # зависимости и конфигурация проекта (uv/ruff/pytest)
+└── uv.lock                           # lock-файл зависимостей (uv)
+```

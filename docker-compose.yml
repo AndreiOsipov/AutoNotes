@@ -1,0 +1,116 @@
+# AutoNotes — единый Compose (эволюция прежнего db + backend + Dockerfile).
+#
+# Было:
+#   - docker-compose.yml: db + backend, порты 5432/8000 наружу
+#   - Dockerfile: uv sync, uvicorn main:app
+#
+# Стало (тот же файл, расширен):
+#   - db + backend + nginx
+#   - backend собирается из корневого Dockerfile
+#   - Postgres изолирован (internal network), API только через nginx
+#
+# Production:
+#   cp .env.example .env && docker compose up -d --build
+#
+# Dev (доп. файл merge'ится поверх, не дублирует стек):
+#   docker compose -f docker-compose.yml -f infra/docker-compose.dev.yml up --build
+
+name: autonotes
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    shm_size: 256mb
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        TORCH_EXTRA: ${TORCH_EXTRA:-cpu}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+    volumes:
+      - ./certs:/app/certs:ro
+      - media_data:/app/src/subtitles
+    networks:
+      - proxy
+      - data
+    expose:
+      - "8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+    security_opt:
+      - no-new-privileges:true
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - proxy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=32m
+      - /var/run:size=8m
+      - /tmp:size=16m
+
+networks:
+  proxy:
+    driver: bridge
+  data:
+    driver: bridge
+    internal: true
+
+volumes:
+  postgres_data:
+  media_data:

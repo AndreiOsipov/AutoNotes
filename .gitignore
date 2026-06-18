@@ -1,8 +1,26 @@
-/venv
-/.venv
-.env
+# === GENERAL ===
+# IDE
+.vscode/
+.cursor/
+.idea/
+
+# macOS
+.DS_Store
+
+# === BACKEND ===
+# Security
+*.env
+*.pem
+
+# Python
+.pytest_cache
+venv/
+.venv/
 __pycache__
-/.vscode
+*.py[cod]
+.ruff_cache
+
+# Rest
 /Subtitles/dir_video/*
 /Subtitles/dir_txt/*
 /Subtitles/dir_audio/*
