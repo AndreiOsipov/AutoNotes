@@ -2,13 +2,18 @@ name: Python CI
 
 on:
   push:
-    branches: ["**"]
+    branches:
+      - "**"
+      - "!main"
+      - "!develop"
+      - "!production"
     paths-ignore:
       - README.md
       - .env.example
       - LICENSE
+      - docs/
   pull_request:
-    branches: [main, master]
+    branches: [main, develop]
 
 jobs:
   ruff:

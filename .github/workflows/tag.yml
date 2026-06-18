@@ -1,0 +1,30 @@
+name: Tag
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+jobs:
+  tag:
+    if: github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.ref == 'develop'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Extract version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(grep '^version' pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "value=v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create git tag
+        run: |
+          git tag ${{ steps.version.outputs.value }}
+          git push origin ${{ steps.version.outputs.value }}
