@@ -175,7 +175,7 @@ TLS на Ingress; compose используется только локально
 
 ## GPU backend (опционально)
 
-Для NVIDIA GPU на Linux добавьте в `docker-compose.yml` (или override):
+Для GPU NVIDIA на Linux добавьте в `docker-compose.yml` (или override):
 
 ```yaml
 backend:
